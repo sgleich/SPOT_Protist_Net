@@ -17,7 +17,7 @@ surfNoLagG <- data.frame(x=c(surfNoLag$X),y=c(surfNoLag$Y),scc=c(surfNoLag$SCC),
 # Unlagged surface
 g <- graph_from_data_frame(surfNoLagG,directed=FALSE)
 
-plot(g,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(g))
+# plot(g,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(g))
 
 # Lagged surface
 surfLagG$new <- ifelse(surfLagG$delay==-1,surfLagG$y,NA)
@@ -26,7 +26,7 @@ surfLagG$x <- ifelse(surfLagG$delay==-1,surfLagG$new,surfLagG$x)
 surfLagG$new <- NULL
 
 gLag <- graph_from_data_frame(surfLagG, directed=TRUE)
-plot(gLag,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(gLag),edge.arrow.size=0.2)
+# plot(gLag,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(gLag),edge.arrow.size=0.2)
 
 # Subset lagged and unlagged DCM
 DCMLag <- subset(dcmSig,Delay!=0)
@@ -38,7 +38,7 @@ DCMNoLagG <- data.frame(x=c(DCMNoLag$X),y=c(DCMNoLag$Y),scc=c(DCMNoLag$SCC),dela
 # Unlagged DCM
 g2 <- graph_from_data_frame(DCMNoLagG,directed=FALSE)
 
-plot(g2,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(g2))
+# plot(g2,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(g2))
 
 # Lagged DCM
 DCMLagG$new <- ifelse(DCMLagG$delay==-1,DCMLagG$y,NA)
@@ -47,7 +47,7 @@ DCMLagG$x <- ifelse(DCMLagG$delay==-1,DCMLagG$new,DCMLagG$x)
 DCMLagG$new <- NULL
 
 gLag2 <- graph_from_data_frame(DCMLagG, directed=TRUE)
-plot(gLag2,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(gLag2),edge.arrow.size=0.2)
+# plot(gLag2,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(gLag2),edge.arrow.size=0.2)
 
 ### Find edges that are in surface and DCM networks ###
 tax <- read.csv(file.choose(),header=TRUE,row.names=1)
@@ -65,10 +65,31 @@ colnames(tax2) <- c("X2","Final2")
 unEdge <- left_join(unEdge,tax2)
 
 taxSum <- unEdge %>% group_by(Final,Final2,col) %>% tally()%>%as.data.frame()
-taxSum$Assoc <- paste(taxSum$Final,taxSum$Final2,sep="-")
 
-ggplot(taxSum,aes(x=reorder(Assoc, -n),y=n,fill=as.factor(col)))+geom_bar(stat="identity")+theme_classic()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size=12))+scale_fill_manual(name="Depth",values=c("darkgoldenrod3","indianred","navy"),labels=c("Surface & DCM","Surface Only","DCM Only"))+ylab("Number of Associations")+xlab("Association Type")
-# ggsave("Figure5_Prelim.pdf",width=18,height=8)
+
+for (i in 1:nrow(taxSum)){
+  t <- taxSum[i,]
+  t2 <- taxSum[-i,]
+  s <- subset(t2,Final==t$Final2 & Final2==t$Final & col==t$col)
+  if (nrow(s)!=0){
+    num <- as.numeric(rownames(s))
+    x <- s$Final2
+    s$Final2 <- s$Final
+    s$Final <- x
+    taxSum[num,] <- s
+  }}
+
+taxSum2 <- taxSum %>% group_by(Final,Final2,col) %>% tally(n)%>%as.data.frame()
+
+
+
+
+taxSum2$Assoc <- paste(taxSum2$Final,taxSum2$Final2,sep="-")
+
+
+
+ggplot(taxSum2,aes(x=reorder(Assoc, -n),y=n,fill=as.factor(col)))+geom_bar(stat="identity")+theme_classic()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size=12))+scale_fill_manual(name="Depth",values=c("darkgoldenrod3","indianred","navy"),labels=c("Surface & DCM","Surface Only","DCM Only"))+ylab("Number of Associations")+xlab("Association Type")
+ggsave("Figure5_Prelim.pdf",width=18,height=8)
 
 
 ### Cluster network ###
@@ -82,6 +103,127 @@ length(clus)
 
 V(int)$community <- clus$membership
 
-pdf("FigureX_Prelim.pdf")  
+# pdf("FigureX_Prelim.pdf")  
 plot(int,vertex.label=NA,layout=layout_with_fr(int),vertex.size=3,mark.border="black",edge.width=0.3,mark.groups=communities(clus),vertex.color="grey",edge.color="black",mark.col=adjustcolor(c("coral1","deepskyblue2","darkseagreen1","mediumpurple"),alpha=0.4))
-dev.off()
+# dev.off()
+
+### Community analysis ###
+df <- read.csv(file.choose(),header=TRUE,row.names=1)
+
+df5 <- subset(df,grepl("5m",rownames(df)))
+dfDCM <- subset(df,grepl("DCM",rownames(df)))
+
+# Remove dups 
+df5 <- subset(df5,rownames(df5)!="SPOTRe.DNA.115.02.16.12.5m_S31_L001_R1_trimmed.fastq")
+dfDCM <- subset(dfDCM,rownames(dfDCM)!="SPOTRe.DNA.115.02.16.12.DCM_S32_L001_R1_trimmed.fastq")
+
+edgesClus <- data.frame(name=V(int)$name, clus=V(int)$community)
+
+df5 <- mutate_all(df5, function(x) as.numeric(as.character(x)))
+df5 <- df5/rowSums(df5)
+df5 <- as.data.frame(t(df5))
+
+df5$name <- rownames(df5)
+edgesClus <- left_join(edgesClus,df5)
+
+# Fxn
+df5Clus <- edgesClus
+rownames(df5Clus) <- df5Clus$name
+df5Clus$name <- NULL
+clust <- df5Clus$clus
+df5Clus$clus <- NULL
+
+df5Clus <- as.data.frame(t(df5Clus))
+df5Clus$meanz <- rowMeans(df5Clus)
+namez <- colnames(df5Clus)
+df5Clus <- as.matrix(df5Clus)
+sdz <- rowSds(df5Clus)
+df5Clus <- as.data.frame(df5Clus)
+colnames(df5Clus) <- namez
+df5Clus$sdz <- sdz
+
+df5Z <- (df5Clus - df5Clus$meanz)/df5Clus$sdz
+df5Z$meanz <- NULL
+df5Z$sdz <- NULL
+
+df5Z <- as.data.frame(t(df5Z))
+df5Z$clus <- clust
+df5Z <- as.data.frame(t(df5Z))
+
+# Environmental data
+env <- read.csv(file.choose(),header=TRUE) #ctd
+env2 <- read.csv(file.choose(),header=TRUE) # nut
+
+
+colz <- colsplit(rownames(df5Z),"\\.",c("spot","dna","num","month","day","year","fin"))
+colz <- colz[1:(nrow(colz)-1),]
+l <- c(3,4,5,6,7,8,9)
+colz$year <- ifelse(colz$year %in% l, paste(200,colz$year,sep=""), paste(20,colz$year,sep=""))
+colz <- data.frame(Month=colz$month,Day=colz$day,Year=colz$year)
+colz$Year <- as.integer(colz$Year)
+colz$Day <- as.integer(colz$Day)
+colz$Month <- as.integer(colz$Month)
+
+env <- subset(env,Depth=="5m")
+env2 <-  subset(env2,Depth=="5m")                
+
+env2 <- left_join(colz,env2)
+
+colz2 <- colsplit(env$date,"/",c("month","day","year"))
+env$Year <- colz2$year
+env$Day <- colz2$day
+l <- c(3,4,5,6,7,8,9)
+env$Year <- ifelse(env$Year %in% l, paste(200,env$Year,sep=""), paste(20,env$Year,sep=""))
+env$Year <- as.numeric(env$Year)
+env <- env[c(4,8:12,14,19:20)]
+env$Depth <- NULL
+
+env <- left_join(colz,env)
+env <- env %>% distinct(Month,Day,Year,.keep_all = TRUE) %>% as.data.frame()
+
+env2 <- env2[c(1:3,6:11,14)]
+
+envTotal <- left_join(env,env2)
+envTotal <- mutate_all(envTotal, function(x) as.numeric(as.character(x)))
+envTotal <- missForest(envTotal)
+envTotal <- envTotal$ximp
+
+df5Z <- as.data.frame(t(df5Z))
+
+plotFxn <- function(df,cluster,env,col){
+  sub <- subset(df, clus==cluster)
+  sub$clus <- NULL
+  sub <- as.data.frame(t(sub))
+  sub$mean <- rowMeans(sub)
+  newDf <- data.frame(z=sub$mean, envTotal[env])
+  colnames(newDf) <- c("z","env")
+  p <- ggplot(newDf, aes(x=env,y=z))+geom_point(fill=col,shape=21)+theme_classic()+geom_smooth(method="lm",formula='y~x',se=FALSE,color="black")
+  # t <- lm(newDf$z~newDf$env)
+  # summary(t)
+  return(p)}
+
+clus1Temp <- plotFxn(df5Z,1,4,"coral1")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #1 vs. Temperature")
+clus1Temp
+
+clus1Chl <- plotFxn(df5Z,1,15,"coral1")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #1 vs. Chlorophyll"~italic(a)))
+clus1Chl
+
+clus2Temp <- plotFxn(df5Z,2,4,"deepskyblue2")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #2 vs. Temperature")
+clus2Temp
+
+clus2Chl <- plotFxn(df5Z,2,15,"deepskyblue2")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #2 vs. Chlorophyll"~italic(a)))
+clus2Chl
+
+clus3Temp <- plotFxn(df5Z,3,4,"darkseagreen1")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #3 vs. Temperature")
+clus3Temp
+
+clus3Chl <- plotFxn(df5Z,3,15,"darkseagreen1")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #3 vs. Chlorophyll"~italic(a)))
+clus3Chl
+
+clus4Temp <- plotFxn(df5Z,4,4,"mediumpurple")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #4 vs. Temperature")
+clus4Temp
+
+clus4Chl <- plotFxn(df5Z,4,15,"mediumpurple")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #4 vs. Chlorophyll"~italic(a)))
+clus4Chl
+ggarrange(clus1Temp,clus2Temp,clus3Temp,clus4Temp,clus1Chl,clus2Chl,clus3Chl,clus4Chl,nrow=2,ncol=4)
+ggsave("Community_Analysis.pdf",width=13,height=8)
