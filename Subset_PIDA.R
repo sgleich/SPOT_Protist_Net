@@ -62,21 +62,28 @@ intEdge <- left_join(intEdge,tax2)
 colnames(tax2)<- c("Kingdom2","Supergroup2","Divison2","Class2","Order2","Family2","Genus2","Species2","V2","Final2","Low2")
 intEdge <- left_join(intEdge,tax2)
 
+intEdge2 <- subset(intEdge, Class !="Unknown")
+
 out <- NULL
-for (i in 1:nrow(intEdge)){
-  tmp <- intEdge[102, ]
-  if(tmp$Genus %in% pida$Genus.org1 | tmp$Genus %in% pida$Genus.org2 | tmp$Genus %in% pida$Species.org1|tmp$Genus %in% pida$Species.org2){
-    sub <- pida %>% filter_all(any_vars(str_detect(., pattern = paste(tmp$Genus))))
-    sub <- sub %>% filter_all(any_vars(str_detect(., pattern = paste(tmp$Genus2))))
-    if (nrow(sub) > 0){
-      out <- rbind(out,sub)
-    }}}
-
-
-try <- data.frame(f1=out$Taxonomic.level.3..org1,g1=out$Genus.org1,s1=out$Species.org1,f2=out$Taxonomic.level.3..org2, g2=out$Genus.org2,s2=out$Species.org2)
- 
-try <- try %>% distinct(f1,g1,s1,f2,g2,s2)
-
-s <- intEdge %>% filter_all(any_vars(str_detect(., pattern = paste("Gyrodinium"))))
-
-s <- intEdge %>% filter(Genus=="Gymnodinium"|Genus2=="Gymnodinium")
+for (i in 1:nrow(pida)){
+  tmp <- pida[i, ]
+  tmpA <- paste(tmp$Taxonomic.level.3..org1,tmp$Genus.org1,tmp$Species.org1,sep="_")
+  tmpB <- paste(tmp$Taxonomic.level.3..org2,tmp$Genus.org2,tmp$Species.org2,sep="_")
+  
+  # Genus                        
+  sub <- intEdge2 %>% filter(str_detect(paste(tmpA),Genus) & str_detect(paste(tmpB),Genus2) | str_detect(paste(tmpA),Genus2) & str_detect(paste(tmpB),Genus))
+  # Family
+  if (nrow(sub)==0){
+    sub <- intEdge2 %>% filter(str_detect(paste(tmpA),Family) & str_detect(paste(tmpB),Family2) | str_detect(paste(tmpA),Family2) & str_detect(paste(tmpB),Family))}
+  # Order
+  if (nrow(sub)==0){
+    sub <- intEdge2 %>% filter(str_detect(paste(tmpA),Order) & str_detect(paste(tmpB),Order2) | str_detect(paste(tmpA),Order2) & str_detect(paste(tmpB),Order))
+  }
+  # Class
+  if (nrow(sub)==0){
+    sub <- intEdge2 %>% filter(str_detect(paste(tmpA),Class) & str_detect(paste(tmpB),Class2) | str_detect(paste(tmpA),Class2) & str_detect(paste(tmpB),Class))
+  }
+  if (nrow(sub)!=0){
+    sub$num <- i
+    out <- rbind(out,sub)
+  }}
