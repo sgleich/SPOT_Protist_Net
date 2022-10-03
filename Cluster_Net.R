@@ -89,7 +89,7 @@ taxSum2$Assoc <- paste(taxSum2$Final,taxSum2$Final2,sep="-")
 
 
 ggplot(taxSum2,aes(x=reorder(Assoc, -n),y=n,fill=as.factor(col)))+geom_bar(stat="identity")+theme_classic()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size=12))+scale_fill_manual(name="Depth",values=c("darkgoldenrod3","indianred","navy"),labels=c("Surface & DCM","Surface Only","DCM Only"))+ylab("Number of Associations")+xlab("Association Type")
-ggsave("Figure5_Prelim.pdf",width=18,height=8)
+# ggsave("Figure5_Prelim.pdf",width=18,height=8)
 
 
 ### Cluster network ###
@@ -110,62 +110,59 @@ plot(int,vertex.label=NA,layout=layout_with_fr(int),vertex.size=3,mark.border="b
 ### Community analysis ###
 df <- read.csv(file.choose(),header=TRUE,row.names=1)
 
-df5 <- subset(df,grepl("5m",rownames(df)))
-dfDCM <- subset(df,grepl("DCM",rownames(df)))
-
 # Remove dups 
-df5 <- subset(df5,rownames(df5)!="SPOTRe.DNA.115.02.16.12.5m_S31_L001_R1_trimmed.fastq")
-dfDCM <- subset(dfDCM,rownames(dfDCM)!="SPOTRe.DNA.115.02.16.12.DCM_S32_L001_R1_trimmed.fastq")
+df <- subset(df,rownames(df)!="SPOTRe.DNA.115.02.16.12.5m_S31_L001_R1_trimmed.fastq" & rownames(df)!="SPOTRe.DNA.115.02.16.12.DCM_S32_L001_R1_trimmed.fastq")
+
+df <- df[1:242,]
 
 edgesClus <- data.frame(name=V(int)$name, clus=V(int)$community)
 
-df5 <- mutate_all(df5, function(x) as.numeric(as.character(x)))
-df5 <- df5/rowSums(df5)
-df5 <- as.data.frame(t(df5))
+df <- mutate_all(df, function(x) as.numeric(as.character(x)))
 
-df5$name <- rownames(df5)
-edgesClus <- left_join(edgesClus,df5)
+df <- df/rowSums(df)
+df <- as.data.frame(t(df))
+
+df$name <- rownames(df)
+edgesClus <- left_join(edgesClus,df)
 
 # Fxn
-df5Clus <- edgesClus
-rownames(df5Clus) <- df5Clus$name
-df5Clus$name <- NULL
-clust <- df5Clus$clus
-df5Clus$clus <- NULL
+dfClus <- edgesClus
+rownames(dfClus) <- dfClus$name
+dfClus$name <- NULL
+clust <- dfClus$clus
+dfClus$clus <- NULL
 
-df5Clus <- as.data.frame(t(df5Clus))
-df5Clus$meanz <- rowMeans(df5Clus)
-namez <- colnames(df5Clus)
-df5Clus <- as.matrix(df5Clus)
-sdz <- rowSds(df5Clus)
-df5Clus <- as.data.frame(df5Clus)
-colnames(df5Clus) <- namez
-df5Clus$sdz <- sdz
+dfClus <- as.data.frame(t(dfClus))
+dfClus$meanz <- rowMeans(dfClus)
+namez <- colnames(dfClus)
+dfClus <- as.matrix(dfClus)
+sdz <- rowSds(dfClus)
+dfClus <- as.data.frame(dfClus)
+colnames(dfClus) <- namez
+dfClus$sdz <- sdz
 
-df5Z <- (df5Clus - df5Clus$meanz)/df5Clus$sdz
-df5Z$meanz <- NULL
-df5Z$sdz <- NULL
+dfZ <- (dfClus - dfClus$meanz)/dfClus$sdz
+dfZ$meanz <- NULL
+dfZ$sdz <- NULL
 
-df5Z <- as.data.frame(t(df5Z))
-df5Z$clus <- clust
-df5Z <- as.data.frame(t(df5Z))
+dfZ <- as.data.frame(t(dfZ))
+dfZ$clus <- clust
+dfZ <- as.data.frame(t(dfZ))
 
 # Environmental data
 env <- read.csv(file.choose(),header=TRUE) #ctd
 env2 <- read.csv(file.choose(),header=TRUE) # nut
 
 
-colz <- colsplit(rownames(df5Z),"\\.",c("spot","dna","num","month","day","year","fin"))
+colz <- colsplit(rownames(dfZ),"\\.",c("spot","dna","num","month","day","year","fin"))
 colz <- colz[1:(nrow(colz)-1),]
 l <- c(3,4,5,6,7,8,9)
 colz$year <- ifelse(colz$year %in% l, paste(200,colz$year,sep=""), paste(20,colz$year,sep=""))
-colz <- data.frame(Month=colz$month,Day=colz$day,Year=colz$year)
+colz <- data.frame(Month=colz$month,Day=colz$day,Year=colz$year,Depth=colz$fin)
 colz$Year <- as.integer(colz$Year)
 colz$Day <- as.integer(colz$Day)
 colz$Month <- as.integer(colz$Month)
-
-env <- subset(env,Depth=="5m")
-env2 <-  subset(env2,Depth=="5m")                
+colz$Depth <- ifelse(grepl("5m",colz$Depth),"5m","DCM")
 
 env2 <- left_join(colz,env2)
 
@@ -176,19 +173,19 @@ l <- c(3,4,5,6,7,8,9)
 env$Year <- ifelse(env$Year %in% l, paste(200,env$Year,sep=""), paste(20,env$Year,sep=""))
 env$Year <- as.numeric(env$Year)
 env <- env[c(4,8:12,14,19:20)]
-env$Depth <- NULL
 
 env <- left_join(colz,env)
-env <- env %>% distinct(Month,Day,Year,.keep_all = TRUE) %>% as.data.frame()
+env <- env %>% distinct(Month,Day,Year,Depth,.keep_all = TRUE) %>% as.data.frame()
 
-env2 <- env2[c(1:3,6:11,14)]
+env2 <- env2[c(1:4,6:11,14)]
 
 envTotal <- left_join(env,env2)
+envTotal <- envTotal[c(5:16)]
 envTotal <- mutate_all(envTotal, function(x) as.numeric(as.character(x)))
 envTotal <- missForest(envTotal)
 envTotal <- envTotal$ximp
 
-df5Z <- as.data.frame(t(df5Z))
+dfZ <- as.data.frame(t(dfZ))
 
 plotFxn <- function(df,cluster,env,col){
   sub <- subset(df, clus==cluster)
@@ -198,32 +195,32 @@ plotFxn <- function(df,cluster,env,col){
   newDf <- data.frame(z=sub$mean, envTotal[env])
   colnames(newDf) <- c("z","env")
   p <- ggplot(newDf, aes(x=env,y=z))+geom_point(fill=col,shape=21)+theme_classic()+geom_smooth(method="lm",formula='y~x',se=FALSE,color="black")
-  # t <- lm(newDf$z~newDf$env)
-  # summary(t)
+  t <- lm(newDf$z~newDf$env)
+  summary(t)
   return(p)}
 
-clus1Temp <- plotFxn(df5Z,1,4,"coral1")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #1 vs. Temperature")
+clus1Temp <- plotFxn(dfZ,1,4,"coral1")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #1 vs. Temperature")+xlim(32.5,34)
 clus1Temp
 
-clus1Chl <- plotFxn(df5Z,1,15,"coral1")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #1 vs. Chlorophyll"~italic(a)))
+clus1Chl <- plotFxn(dfZ,1,12,"coral1")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #1 vs. Chlorophyll"~italic(a)))
 clus1Chl
 
-clus2Temp <- plotFxn(df5Z,2,4,"deepskyblue2")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #2 vs. Temperature")
+clus2Temp <- plotFxn(dfZ,2,4,"deepskyblue2")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #2 vs. Temperature")+xlim(32.5,34)
 clus2Temp
 
-clus2Chl <- plotFxn(df5Z,2,15,"deepskyblue2")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #2 vs. Chlorophyll"~italic(a)))
+clus2Chl <- plotFxn(dfZ,2,12,"deepskyblue2")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #2 vs. Chlorophyll"~italic(a)))
 clus2Chl
 
-clus3Temp <- plotFxn(df5Z,3,4,"darkseagreen1")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #3 vs. Temperature")
+clus3Temp <- plotFxn(dfZ,3,4,"darkseagreen1")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #3 vs. Temperature")+xlim(32.5,34)
 clus3Temp
 
-clus3Chl <- plotFxn(df5Z,3,15,"darkseagreen1")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #3 vs. Chlorophyll"~italic(a)))
+clus3Chl <- plotFxn(dfZ,3,12,"darkseagreen1")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #3 vs. Chlorophyll"~italic(a)))
 clus3Chl
 
-clus4Temp <- plotFxn(df5Z,4,4,"mediumpurple")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #4 vs. Temperature")
+clus4Temp <- plotFxn(dfZ,4,4,"mediumpurple")+xlab("Temperature (°C)") +ylab("Mean community z-score")+ggtitle("Community #4 vs. Temperature")+xlim(32.5,34)
 clus4Temp
 
-clus4Chl <- plotFxn(df5Z,4,15,"mediumpurple")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #4 vs. Chlorophyll"~italic(a)))
+clus4Chl <- plotFxn(dfZ,4,12,"mediumpurple")+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{"-1"}*")")) +ylab("Mean community z-score")+ggtitle(expression("Community #4 vs. Chlorophyll"~italic(a)))
 clus4Chl
 ggarrange(clus1Temp,clus2Temp,clus3Temp,clus4Temp,clus1Chl,clus2Chl,clus3Chl,clus4Chl,nrow=2,ncol=4)
-ggsave("Community_Analysis.pdf",width=13,height=8)
+ggsave("Community_Analysis_SurfDCM.pdf",width=13,height=8)
