@@ -16,43 +16,8 @@ dcm <- as.data.frame(t(dcm))
 total <- rbind(surf,dcm)
 
 # Load environmental data 
-env <- read.csv("Nut_env.csv",header=TRUE)
-env2 <- read.csv("CTD_env.csv",header=TRUE)
-
-# Clean up environmental data
-colz <- colsplit(rownames(total),"\\.",c("Spot","dna","num","month","day","year","depth"))
-l <- c(3,4,5,6,7,8,9)
-colz$year <- ifelse(colz$year %in% l, paste(200,colz$year,sep=""), paste(20,colz$year,sep=""))
-colz <- data.frame(Month=colz$month,Day=colz$day,Year=colz$year,Depth=colz$depth)
-colz$Year <- as.integer(colz$Year)
-colz$Day <- as.integer(colz$Day)
-colz$Month <- as.integer(colz$Month)
-colz$Depth <- ifelse(grepl("5m",colz$Depth),"5m","DCM")
-env <- subset(env,Depth=="5m"|Depth=="DCM")
-colz2 <- colsplit(env2$date,"/",c("month","day","year"))
-env2$Year <- colz2$year
-env2$Day <- colz2$day
-l <- c(3,4,5,6,7,8,9)
-env2$Year <- ifelse(env2$Year %in% l, paste(200,env2$Year,sep=""), paste(20,env2$Year,sep=""))
-env2$Year <- as.numeric(env2$Year)
-env2 <- env2[c(4,8:12,14,19:20)]
-
-# Let's order the ASV data in time order (block CV)
-total <- cbind(total,colz)
-total <- total %>% arrange(Year,Month,Day)%>%as.data.frame()
-
-# Now grab environmental data that aligns with ASV data
-colz <- total[,399:402]
-total <- total[-c(399:402)]
-envNew <- left_join(env,env2)
-envNew <- left_join(colz,envNew)
-envNew2 <- envNew %>% distinct(Month,Day,Year,Depth, .keep_all = TRUE) %>% as.data.frame()
-envNew2 <- envNew2[c(6:11,14,16:20)]
-
-# Impute missing environmental data points
-envNew2 <- mutate_all(envNew2, function(x) as.numeric(as.character(x)))
-envNewImp <- missForest(envNew2)
-envNewImp <- envNewImp$ximp
+env <- read.csv("environmental.csv",header=TRUE,row.names=1)
+envNewImp <- env
 
 # Set up training and test dataset for ASV-ASV predictions
 finalTest <- total[181:242,] # 25% of data used for test
@@ -69,21 +34,21 @@ for (i in 1:ncol(total)){
   X_test <- finalTest[,-i] # Everything but target ASV test
   
   tr_control <- caret::trainControl(
-  method = 'timeslice',
-  initialWindow = nrow(X_train) - horizon,
-  fixedWindow = TRUE, savePredictions = "all")
+    method = 'timeslice',
+    initialWindow = nrow(X_train) - horizon,
+    fixedWindow = TRUE, savePredictions = "all")
   
   tune_grid <- expand.grid(
-  mtry = c(20,80,120,180,220,280,320,350,380,398))
+    mtry = c(20,80,120,180,220,280,320,350,380,398))
   
   
   res_asv <- caret::train(
-  data.frame(X_train),
-  y_train,
-  method = 'rf',
-  trControl = tr_control,
-  tuneGrid = tune_grid,
-  ntree=100)
+    data.frame(X_train),
+    y_train,
+    method = 'rf',
+    trControl = tr_control,
+    tuneGrid = tune_grid,
+    ntree=100)
   
   y_hat <- predict(res_asv, X_test)
   rf_scored_asv <- as_tibble(cbind(y_test, y_hat))
@@ -97,16 +62,16 @@ for (i in 1:ncol(total)){
   X_train <- envNewImp[1:180,] 
   y_test <- finalTest[,i]
   X_test <- envNewImp[181:242,]
-
+  
   tr_control2 <- caret::trainControl(
-  method = 'timeslice',
-  initialWindow = nrow(X_train) - horizon,
-  fixedWindow = TRUE, savePredictions = "all")
+    method = 'timeslice',
+    initialWindow = nrow(X_train) - horizon,
+    fixedWindow = TRUE, savePredictions = "all")
   
   tune_grid2 <- expand.grid(
-  mtry = c(20,80,120,180,220,280,320,350,380,398))
-
-
+    mtry = c(20,80,120,180,220,280,320,350,380,398))
+  
+  
   res_env <- caret::train(
     data.frame(X_train),
     y_train,
@@ -122,7 +87,37 @@ for (i in 1:ncol(total)){
   RMSE_env[1,5] <- "Environment"
   colnames(RMSE_env) <- c("metric","s","estimate","Y","Predictors")
   
-  out <- rbind(out,RMSE_asv,RMSE_env)}
+  # Run RF on ASV i with ASV AND environmental parameters as predictors
+  allPred <- cbind(total,envNewImp)
+  y_train <- finalTrain[, i] 
+  X_train <- allPred[1:180,-i] 
+  y_test <- finalTest[,i]
+  X_test <- allPred[181:242,-i]
+  
+  tr_control3 <- caret::trainControl(
+    method = 'timeslice',
+    initialWindow = nrow(X_train) - horizon,
+    fixedWindow = TRUE, savePredictions = "all")
+  
+  tune_grid3 <- expand.grid(
+    mtry = c(20,80,120,180,220,280,320,350,380,398,409))
+  
+  
+  res_all <- caret::train(
+    data.frame(X_train),
+    y_train,
+    method = 'rf',
+    trControl = tr_control3,
+    tuneGrid = tune_grid3,
+    ntree=100)
+  
+  y_hat3 <- predict(res_all, X_test)
+  rf_scored_all <- as_tibble(cbind(y_test, y_hat3))
+  RMSE_all <- yardstick::rmse(rf_scored_all, truth=y_test,estimate=y_hat3)
+  RMSE_all[1,4] <- colnames(total)[i] 
+  RMSE_all[1,5] <- "ASV+ Environment"
+  colnames(RMSE_all) <- c("metric","s","estimate","Y","Predictors")
+  
+  out <- rbind(out,RMSE_asv,RMSE_env,RMSE_all)}
 
-write.csv(out,"randomForest_Results.csv")
-
+write.csv(out,"randomForest_Results_Both.csv")
