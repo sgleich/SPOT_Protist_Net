@@ -9,50 +9,46 @@ dcm <- read.delim(file.choose(),header=TRUE)
 # Subset based on p and q-value
 surfSig <- subset(surf,Psscc<0.01 & Qsscc < 0.01)
 dcmSig <- subset(dcm,Psscc<0.01 & Qsscc < 0.01)
+surfG <- data.frame(x=c(surfSig$X),y=c(surfSig$Y),scc=c(surfSig$SCC),delay=c(surfSig$Delay))
+dcmG <- data.frame(x=c(dcmSig$X),y=c(dcmSig$Y),scc=c(dcmSig$SCC),delay=c(dcmSig$Delay))
 
-# Subset lagged and unlagged surface
-surfLag <- subset(surfSig,Delay!=0)
-surfNoLag <- subset(surfSig,Delay==0)
-surfLagG <- data.frame(x=c(surfLag$X),y=c(surfLag$Y),scc=c(surfLag$SCC),delay=c(surfLag$Delay))
-surfNoLagG <- data.frame(x=c(surfNoLag$X),y=c(surfNoLag$Y),scc=c(surfNoLag$SCC),delay=c(surfNoLag$Delay))
-
+surfG$s <- ifelse(surfG$delay==-1,surfG$x,NA)
+surfG$x <- ifelse(!is.na(surfG$s),surfG$y,surfG$x)
+surfG$y <- ifelse(!is.na(surfG$s),surfG$s,surfG$y)
+surfG$delay <- ifelse(!is.na(surfG$s),1,surfG$delay)
+unique(surfG$delay)
+ 
 ### Plot lagged and unlagged networks surface ###
 # Unlagged surface
-g <- graph_from_data_frame(surfNoLagG,directed=FALSE)
-# plot(g,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(g))
+surfG$scc <- NULL
+surfG$s <- NULL
+g <- graph_from_data_frame(surfG,directed=TRUE)
 
-# Lagged surface
-surfLagG$new <- ifelse(surfLagG$delay==-1,surfLagG$y,NA)
-surfLagG$y <- ifelse(surfLagG$delay==-1,surfLagG$x,surfLagG$y)
-surfLagG$x <- ifelse(surfLagG$delay==-1,surfLagG$new,surfLagG$x)
-surfLagG$new <- NULL
+# pdf("SurfaceNet.pdf")
+plot(g,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(g),edge.arrow.mode = ifelse(E(g)$delay==0, "-", ">"),edge.arrow.size=0.2,vertex.color="grey20")
+# dev.off()
+          
+dcmG$s <- ifelse(dcmG$delay==-1,dcmG$x,NA)
+dcmG$s <- ifelse(dcmG$delay==-1,dcmG$x,NA)
+dcmG$x <- ifelse(!is.na(dcmG$s),dcmG$y,dcmG$x)
+dcmG$y <- ifelse(!is.na(dcmG$s),dcmG$s,dcmG$y)
+dcmG$delay <- ifelse(!is.na(dcmG$s),1,dcmG$delay)
 
-gLag <- graph_from_data_frame(surfLagG, directed=TRUE)
-# plot(gLag,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(gLag),edge.arrow.size=0.2)
+# Plot surface and DCM networks with lagged and unlagged interactions
+surfG$scc <- NULL
+# Plot surface and DCM networks with lagged and unlagged interactions
+dcmG$scc <- NULL
+dcmG$s <- NULL
+g2 <- graph_from_data_frame(dcmG,directed=TRUE)
 
-# Subset lagged and unlagged DCM
-DCMLag <- subset(dcmSig,Delay!=0)
-DCMNoLag <- subset(dcmSig,Delay==0)
-DCMLagG <- data.frame(x=c(DCMLag$X),y=c(DCMLag$Y),scc=c(DCMLag$SCC),delay=c(DCMLag$Delay))
-DCMNoLagG <- data.frame(x=c(DCMNoLag$X),y=c(DCMNoLag$Y),scc=c(DCMNoLag$SCC),delay=c(DCMNoLag$Delay))
+# pdf("DCMNet.pdf")
+plot(g2,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(g2),edge.arrow.mode = ifelse(E(g2)$delay==0, "-", ">"),edge.arrow.size=0.2,vertex.color="grey20")
+# dev.off()
+           
+### Unite Surface and DCM Delay 0 graphs ###
+int <- intersection(g,g2)
 
-### Plot lagged and unlagged networks DCM ###
-# Unlagged DCM
-g2 <- graph_from_data_frame(DCMNoLagG,directed=FALSE)
-# plot(g2,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(g2))
-
-# Lagged DCM
-DCMLagG$new <- ifelse(DCMLagG$delay==-1,DCMLagG$y,NA)
-DCMLagG$y <- ifelse(DCMLagG$delay==-1,DCMLagG$x,DCMLagG$y)
-DCMLagG$x <- ifelse(DCMLagG$delay==-1,DCMLagG$new,DCMLagG$x)
-DCMLagG$new <- NULL
-
-gLag2 <- graph_from_data_frame(DCMLagG, directed=TRUE)
-# plot(gLag2,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(gLag2),edge.arrow.size=0.2)
-
-### Find edges that are in surface and DCM networks ###
-tax <- read.csv(file.choose(),header=TRUE,row.names=1)
-int <- intersection(g,g2) # Only edges that are in both
+plot(int,vertex.size=4,vertex.label=NA,edge.width=0.3,layout=layout_with_fr(int),vertex.color="grey",edge.arrow.mode = ifelse(E(g2)$delay==0, "-", ">"),edge.arrow.size=0.2,vertex.color="grey20")
 
 tax2 <- tax[c(3:13)]
 colnames(tax2)<- c("Kingdom","Supergroup","Divison","Class","Order","Family","Genus","Species","V1","Final","Low")
