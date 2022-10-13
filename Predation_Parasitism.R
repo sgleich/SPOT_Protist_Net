@@ -1,0 +1,226 @@
+### Load eLSA Output and Filter ###
+# Load data
+surf <- read.delim(file.choose(),header=TRUE)
+dcm <- read.delim(file.choose(),header=TRUE)
+
+# Subset based on p and q-value
+surfSig <- subset(surf,Psscc<0.01 & Qsscc < 0.01)
+dcmSig <- subset(dcm,Psscc<0.01 & Qsscc < 0.01)
+surfG <- data.frame(x=c(surfSig$X),y=c(surfSig$Y),scc=c(surfSig$SCC),delay=c(surfSig$Delay))
+dcmG <- data.frame(x=c(dcmSig$X),y=c(dcmSig$Y),scc=c(dcmSig$SCC),delay=c(dcmSig$Delay))
+
+surfG$s <- ifelse(surfG$delay==-1,surfG$x,NA)
+surfG$x <- ifelse(!is.na(surfG$s),surfG$y,surfG$x)
+surfG$y <- ifelse(!is.na(surfG$s),surfG$s,surfG$y)
+surfG$delay <- ifelse(!is.na(surfG$s),1,surfG$delay)
+unique(surfG$delay)
+ 
+### Plot lagged and unlagged networks surface ###
+# Unlagged surface
+surfG$scc <- NULL
+surfG$s <- NULL
+g <- graph_from_data_frame(surfG,directed=TRUE)
+
+# pdf("SurfaceNet.pdf")
+plot(g,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(g),edge.arrow.mode = ifelse(E(g)$delay==0, "-", ">"),edge.arrow.size=0.17,vertex.color="grey20")
+# dev.off()
+          
+dcmG$s <- ifelse(dcmG$delay==-1,dcmG$x,NA)
+dcmG$s <- ifelse(dcmG$delay==-1,dcmG$x,NA)
+dcmG$x <- ifelse(!is.na(dcmG$s),dcmG$y,dcmG$x)
+dcmG$y <- ifelse(!is.na(dcmG$s),dcmG$s,dcmG$y)
+dcmG$delay <- ifelse(!is.na(dcmG$s),1,dcmG$delay)
+
+# Plot surface and DCM networks with lagged and unlagged interactions
+surfG$scc <- NULL
+# Plot surface and DCM networks with lagged and unlagged interactions
+dcmG$scc <- NULL
+dcmG$s <- NULL
+g2 <- graph_from_data_frame(dcmG,directed=TRUE)
+
+# pdf("DCMNet.pdf")
+plot(g2,vertex.size=4,vertex.label=NA,edge.width=0.1,layout=layout_with_lgl(g2),edge.arrow.mode = ifelse(E(g2)$delay==0, "-", ">"),edge.arrow.size=0.17,vertex.color="grey20")
+# dev.off()
+           
+### Unite Surface and DCM Delay 0 graphs ###
+int <- intersection(g,g2)
+
+plot(int,vertex.size=4,vertex.label=NA,edge.width=0.3,layout=layout_with_fr(int),vertex.color="grey",edge.arrow.mode = ifelse(E(g2)$delay==0, "-", ">"),edge.arrow.size=0.2,vertex.color="grey20")
+
+### Make network graph with species level labels ###
+tax <- read.csv(file.choose(),header=TRUE)
+tax$X.1 <- NULL
+tax$X <- NULL
+tax$seq <- NULL
+
+
+intEdge <- as.data.frame(get.edgelist(int))
+colnames(tax) <- c("K1","S1","D1","C1","O1","F1","G1","Sp1","V1","Final1","Low1")
+intEdge <- left_join(intEdge,tax)
+colnames(tax) <- c("K2","S2","D2","C2","O2","F2","G2","Sp2","V2","Final2","Low2")
+intEdge <- left_join(intEdge,tax)
+
+# PIDA
+pida <- read.csv(file.choose(),header=TRUE)
+pidaSub <-subset(pida,Ecological.interaction=="predation") 
+pidaSub <- pidaSub[c(7:10,13:16)]
+
+intEdge2 <- intEdge
+
+out <- NULL
+for (i in 1:nrow(pidaSub)){
+  tmp <- pidaSub[i, ]
+  tmpA <- paste(tmp$Taxonomic.level.3..org1,tmp$Genus.org1,tmp$Species.org1,sep="_")
+  tmpB <- paste(tmp$Taxonomic.level.3..org2,tmp$Genus.org2,tmp$Species.org2,sep="_")
+  
+  # Genus                        
+  sub <- intEdge2 %>% filter(str_detect(paste(tmpA),G1) & str_detect(paste(tmpB),G2) | str_detect(paste(tmpA),G2) & str_detect(paste(tmpB),G1))
+  # Family
+  if (nrow(sub)==0){
+    sub <- intEdge2 %>% filter(str_detect(paste(tmpA),F1) & str_detect(paste(tmpB),F2) | str_detect(paste(tmpA),F2) & str_detect(paste(tmpB),F1))}
+  # Order
+  if (nrow(sub)==0){
+    sub <- intEdge2 %>% filter(str_detect(paste(tmpA),O1) & str_detect(paste(tmpB),O2) | str_detect(paste(tmpA),O2) & str_detect(paste(tmpB),O1))
+  }
+  # Class
+  if (nrow(sub)==0){
+    sub <- intEdge2 %>% filter(str_detect(paste(tmpA),C1) & str_detect(paste(tmpB),C2) | str_detect(paste(tmpA),C2) & str_detect(paste(tmpB),C1))
+  }
+  if (nrow(sub)!=0){
+    sub$num <- i
+    out <- rbind(out,sub)
+  }}
+
+outFin <- data.frame(x=out$V1,y=out$V2)
+
+sub1 <- subset(intEdge2,G1=="Karlodinium" & G2=="Gymnodinium" |G2=="Karlodinium" & G1=="Gymnodinium")
+sub1 <- subset(intEdge2,G1=="Karlodinium" & G2=="Prorocentrum"|G2=="Karlodinium" & G1=="Prorocentrum")
+sub2 <- subset(intEdge2,G1=="Karlodinium" & G2=="Heterocapsa" |G2=="Karlodinium" & G1=="Heterocapsa")
+sub3 <- subset(intEdge2,G1=="Karlodinium" & G2=="Chrysochromulina" | G2=="Karlodinium" & G1=="Chrysochromulina")
+sub4 <- subset(intEdge2,G1=="Karlodinium" & grepl("Phaeocystis",intEdge2$G2) | G2=="Karlodinium" & grepl("Phaeocystis",intEdge2$G1))
+sub5 <- subset(intEdge2,G1=="Strobilidium" & grepl("Gymnodinium",intEdge2$G2) | G2=="Strobilidium" & grepl("Gymnodinium",intEdge2$G1))
+sub6 <- subset(intEdge2,G1=="Strobilidium" & grepl("Gyrodinium",intEdge2$G2) | G2=="Strobilidium" & grepl("Gyrodinium",intEdge2$G1))
+sub7 <- subset(intEdge2,G1=="Heterocapsa" & grepl("Gyrodinium",intEdge2$G2) | G2=="Heterocapsa" & grepl("Gyrodinium",intEdge2$G1))
+sub8 <- subset(intEdge2,G1=="Gymnodinium" & grepl("Prorocentrum",intEdge2$G2) | G2=="Gymnodinium" & grepl("Prorocentrum",intEdge2$G1))
+sub9 <- subset(intEdge2,G1=="Heterocapsa" & grepl("Prorocentrum",intEdge2$G2) | G2=="Heterocapsa" & grepl("Prorocentrum",intEdge2$G1))
+sub10 <- subset(intEdge2,G1=="Prorocentrum" & grepl("Prorocentrum",intEdge2$G2) | G2=="Prorocentrum" & grepl("Prorocentrum",intEdge2$G1))
+sub11 <- subset(intEdge2,G1=="Prorocentrum" & grepl("Heterocapsa",intEdge2$G2) | G2=="Prorocentrum" & grepl("Heterocapsa",intEdge2$G1))
+sub12 <- subset(intEdge2,G1=="Gymnodinium" & grepl("Heterocapsa",intEdge2$G2) | G2=="Gymnodinium" & grepl("Heterocapsa",intEdge2$G1))
+sub13 <- subset(intEdge2,G1=="Gyrodinium" & grepl("Heterocapsa",intEdge2$G2) | G2=="Gyrodinium" & grepl("Heterocapsa",intEdge2$G1))
+sub14 <- subset(intEdge2,G1=="Gyrodinium" & grepl("Prorocentrum",intEdge2$G2) | G2=="Gyrodinium" & grepl("Prorocentrum",intEdge2$G1))
+sub15 <- subset(intEdge2,G1=="Gyrodinium" & grepl("Gymnodinium",intEdge2$G2) | G2=="Gyrodinium" & grepl("Gymnodinium",intEdge2$G1))
+sub16 <- subset(intEdge2,G1=="Gyrodinium" & grepl("Chrysochromulina",intEdge2$G2) | G2=="Gyrodinium" & grepl("Chrysochromulina",intEdge2$G1))
+sub17 <- subset(intEdge2,G1=="Leucocryptos" & grepl("Chrysochromulina",intEdge2$G2) | G2=="Leucocryptos" & grepl("Chrysochromulina",intEdge2$G1))
+sub18 <- subset(intEdge2,G1=="Pyramimonas" & grepl("Strombidium",intEdge2$G2) | G2=="Pyramimonas" & grepl("Strombidium",intEdge2$G1))
+sub19 <- subset(intEdge2,G1=="Phaeocystis" & grepl("Strombidium",intEdge2$G2) | G2=="Phaeocystis" & grepl("Strombidium",intEdge2$G1))
+
+
+final <- rbind(sub1,sub2,sub3,sub4,sub5,sub6,sub7,sub8,sub9,sub10,sub11,sub12,sub13,sub14,sub15,sub16,sub17,sub18,sub19)
+
+
+
+
+
+
+
+
+intEdge2 <- subset(intEdge,C1=="Syndiniales"|C2=="Syndiniales")
+sub1 <- subset(intEdge2,C1=="Syndiniales" & C2=="Syndiniales")
+sub1 <- subset(intEdge2,C1=="Syndiniales" & C2=="Syndiniales")
+sub2 <- subset(intEdge2,C1=="Syndiniales" & G2=="Prorocentrum" | C2=="Syndiniales" & G1=="Prorocentrum")
+sub3 <- subset(intEdge2,C1=="Syndiniales" & G2=="Karlodinium" | C2=="Syndiniales" & G1=="Karlodinium")
+sub4 <- subset(intEdge2,C1=="Syndiniales" & grepl("Strombidium",intEdge2$G2) | C2=="Syndiniales" & grepl("Strombidium",intEdge2$G1))
+sub5 <- subset(intEdge2,C1=="Syndiniales" & grepl("Heterocapsa",intEdge2$G2) | C2=="Syndiniales" & grepl("Heterocapsa",intEdge2$G1))
+sub6 <- subset(intEdge2,C1=="Syndiniales" & grepl("Gymnodinium",intEdge2$G2) | C2=="Syndiniales" & grepl("Gymnodinium",intEdge2$G1))
+sub7 <- subset(intEdge2,C1=="Syndiniales" & grepl("Gyrodinium",intEdge2$G2) | C2=="Syndiniales" & grepl("Gyrodinium",intEdge2$G1))
+sub8 <- subset(intEdge2,C1=="Syndiniales" & grepl("Acanthometr",intEdge2$G2) | C2=="Syndiniales" & grepl("Acanthometr",intEdge2$G1))
+
+out <- rbind(sub1,sub2,sub3,sub4,sub5,sub6,sub7,sub8)
+outFin <- data.frame(x=out$V1,y=out$V2)
+
+### Crazy Circos-type plot PREDATION ###
+outG <-graph_from_data_frame(outFin,directed=FALSE)
+outDf <- data.frame(num=c(V(outG)$name))
+colnames(outDf) <- "V2"
+outDf <- left_join(outDf,tax)
+
+outSum <- outDf %>% group_by(Final2) %>% tally()
+
+chlor <- subset(outDf,Final2=="Chlorophyte")
+cil <- subset(outDf,Final2=="Ciliate")
+cry <- subset(outDf,Final2=="Cryptophyte")
+dia <- subset(outDf,Final2=="Diatom")
+dino <- subset(outDf,Final2=="Dinoflagellate")
+hapto <- subset(outDf,Final2=="Haptophyte")
+mast <- subset(outDf,Final2=="MAST")
+oeuk <- subset(outDf,Final2=="Other Eukaryote")
+ostr <- subset(outDf,Final2=="Other Stramenopile")
+rhiz <- subset(outDf,Final2=="Rhizaria")
+syn <- subset(outDf,Final2=="Syndiniales")
+unk <- subset(outDf,Final2=="Unknown Eukaryote")
+
+v <- c(outSum$Final2,chlor$num,cil$num,cry$num,dia$num,dino$num,hapto$num,mast$num,oeuk$num,ostr$num,rhiz$num,syn$num,unk$num)
+
+
+# Hierarchy df
+hierarchy <- data.frame(from=outDf$Final2,to=outDf$Low2)
+tmp <- data.frame(from=c(rep("Origin",2)),to=c("Dinoflagellate","Haptophyte"))
+hierarchy <- rbind(tmp,hierarchy)
+
+# Vertices df
+vertices <- data.frame(name=outDf$Low2,value=1,group=outDf$Final2)
+tmp2 <- data.frame(name=c("Origin","Dinoflagellate","Haptophyte"),value=c(1,1,1),group=c(NA,"Origin","Origin"))
+vertices <- rbind(tmp2,vertices)
+
+# Mygraph
+mygraph <- graph_from_data_frame(hierarchy, vertices=vertices)
+
+connect <- data.frame(from=c(out$Low1),to=c(out$Low2),value=c(1))
+from  <-  match( connect$from, vertices$name)
+to  <-  match( connect$to, vertices$name)
+
+#Let's add information concerning the label we are going to add: angle, horizontal adjustement and potential flip
+#calculate the ANGLE of the labels
+vertices$id <- NA
+myleaves <- which(is.na( match(vertices$name, hierarchy$from) ))
+nleaves <- length(myleaves)
+vertices$id[ myleaves ] <- seq(1:nleaves)
+vertices$angle <- 90 - 360 * vertices$id / nleaves
+
+# calculate the alignment of labels: right or left
+# If I am on the left part of the plot, my labels have currently an angle < -90
+vertices$hjust <- ifelse( vertices$angle < -90, 1, 0)
+
+# flip angle BY to make them readable
+vertices$angle <- ifelse(vertices$angle < -90, vertices$angle+180, vertices$angle)
+
+# calculate the alignment of labels: right or left
+# If I am on the left part of the plot, my labels have currently an angle < -90
+vertices$hjust <- ifelse( vertices$angle < -90, 1, 0)
+
+# flip angle BY to make them readable
+vertices$angle <- ifelse(vertices$angle < -90, vertices$angle+180, vertices$angle)
+
+mygraph <- igraph::graph_from_data_frame( hierarchy, vertices=vertices )
+
+# The connection object must refer to the ids of the leaves:
+from  <-  match( connect$from, vertices$name)
+to  <-  match( connect$to, vertices$name)
+
+
+# Plot network
+v <- randomcoloR::distinctColorPalette(12)
+
+ggraph(mygraph, layout = 'dendrogram', circular = TRUE) + 
+  geom_node_point(aes(filter = leaf, x = x*1.05, y=y*1.05)) +
+  geom_conn_bundle(data = get_con(from = from, to = to), alpha=0.5, colour="skyblue", width=0.9) +
+  # geom_node_text(aes(x = x*1.1, y=y*1.1, filter = leaf, label=name, angle = angle, hjust=hjust), size=2.5, alpha=1) +
+  theme_void() +
+  theme(
+    legend.position="none",
+    plot.margin=unit(c(0,0,0,0),"cm"),
+  ) +
+  expand_limits(x = c(-1.2, 1.2), y = c(-1.2, 1.2))+theme(legend.position = "right")+geom_node_point(aes(filter = leaf, x = x*1.05, y=y*1.05, colour=group),   size=3) +
+  scale_colour_manual(name="Taxonomic Groups",values= c(v))+ggtitle("")
+
+ggsave("Predator_Prelim.pdf",width=9,height=7)
