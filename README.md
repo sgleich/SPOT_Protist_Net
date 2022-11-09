@@ -4,7 +4,7 @@ By: Samantha J. Gleich
 Last updated: November 9, 2022  
 
 
-![](static/slide1.png)\
+![](static/slide1.png)
 
 
 # Make ASVs in Qiime2
