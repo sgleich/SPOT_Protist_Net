@@ -1,7 +1,7 @@
 # San Pedro Ocean Time-series 18S-V4 Amplicon Analysis and Network Analysis
-SPOT_Protist_Net  
-By: Samantha J. Gleich  
-Last updated: November 9, 2022  
+**SPOT_Protist_Net**  
+**By: Samantha J. Gleich**  
+**Last updated: November 9, 2022**  
 
 
 ![](static/slide1.png)
