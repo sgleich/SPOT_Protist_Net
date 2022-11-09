@@ -3,7 +3,7 @@ SPOT_Protist_Net
 By: Samantha J. Gleich  
 Last updated: November 9, 2022  
   
-![](static/Slide1.png)\
+![](static/slide1.png)\
 
 # Make ASVs in Qiime2
 First we will use our raw, 18S-V4 reads to create amplicon sequence variants (ASVs). This pipeline was adapted from a pipeline documented by Sarah Hu (https://github.com/shu251/V4_tagsequencing_18Sdiversity_qiime2)
