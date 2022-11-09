@@ -62,7 +62,7 @@ qiime dada2 denoise-paired
 	--p-n-threads 8 \
 	--p-trunc-len-f 200 \
 	--p-trunc-len-r 200 \
-  --p-max-ee-f 2 \
+	--p-max-ee-f 2 \
 	--p-max-ee-r 2 \
 	--p-n-reads-learn 1000000 \
 	--p-chimera-method pooled \
