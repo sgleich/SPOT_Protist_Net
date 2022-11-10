@@ -70,5 +70,18 @@ qiime dada2 denoise-paired
   ```
   ## Assign taxonomy 
   ```
-  coming soon
+ qiime feature-classifier classify-sklearn --i-classifier pr2_v4_v14_classifier.qza --i-reads ASVs2/rep-seqs.qza --o-classification ASVs2/tax_sklearn.qza
   ```
+  ## Convert qza files to TSV
+  ```
+  qiime tools export --input-path table.qza --output-path export_dir
+  ```
+  ```
+  cd export_dir
+  biom convert -i feature-table.biom -o feature-table.tsv --to-tsv
+  ```
+  ```
+  qiime tools export --input-path tax_sklearn.qza --output-path export_dir
+  ```
+ 
+  
