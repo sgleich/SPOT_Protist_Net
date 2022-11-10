@@ -21,7 +21,7 @@ namez$depth <- ifelse(grepl("5m",namez$g),"5m","DCM")
 namez$fin <- paste(namez$c,namez$d,namez$e,namez$f,namez$depth,sep="_")
 
 # Make a new dataframe with old sample name info and new sample name info
-fin <- data.frame(namez=c(namez$V1),new=c(namez2$fin))
+fin <- data.frame(namez=c(namez$V1),new=c(namez$fin))
 fin$new <- paste("SPOT",fin$new,sep="_")
 fin <- fin %>% distinct(new,.keep_all = TRUE)
 
