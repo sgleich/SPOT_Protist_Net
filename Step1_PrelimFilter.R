@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Pre-processing (Filtering + GAM-transforming) ###
 ### By: Samantha Gleich ###
-### Last Updated: 11/10/22 ###
+### Last Updated: 11/11/22 ###
 
 # Load libraries
 library(tidyverse)
@@ -43,15 +43,15 @@ df5 <- as.data.frame(t(df5))
 dfDCM <- as.data.frame(t(dfDCM))
 
 # This is our ASV filtration step. If we include all ~30,000 ASVs in the network analysis it would take too long to run and it would be difficult to interpret the output. Instead, we will filter our surface (5 m) and DCM datasets so that only ASVs that are non-zero in > 20% of samples are included in the network analysis
-df5Filt <- subset(df5,rowSums(df5==0) <= 25) # 25 == ~20% not zero
+df5Filt <- subset(df5,rowSums(df5==0) <= 49) # ~60% of samples have to be non-zero
 # Optional: Check to see how many 0s are in the dataframe for each ASV
 # df5Filt$count <- rowSums(df5Filt==0) 
 # df5Filt$count <- NULL
 
-dfDCMFilt <- subset(dfDCM,rowSums(dfDCM==0) <= 25) # 25 == ~20% not zero
+dfDCMFilt <- subset(dfDCM,rowSums(dfDCM==0) <= 48) # ~60 % of samples have to be non-zero
 # Optional: Check to see how many 0s are in the dataframe for each ASV
-dfDCMFilt$count <- rowSums(dfDCMFilt==0)
-dfDCMFilt$count <- NULL
+# dfDCMFilt$count <- rowSums(dfDCMFilt==0)
+# dfDCMFilt$count <- NULL
 
 # For this analysis, we will include ASVs in both networks that passed our filtering threshold in either network. 
 namez5 <- rownames(df5Filt)
@@ -63,8 +63,8 @@ namez <- unique(namez) # These are all of the ASVs that will be included in both
 dfCLR <- as.data.frame(dfCLR)
 dfCLRFilt <- subset(dfCLR,select=c(namez))
 
-# Now we need to step up some vectors for our NetGAM time-series transformation (vectos are MOY and DayofTS -- see NetGAM documentation)
-colz <- colsplit(rownames(dfclrFilt),"_",c("spot","num","month","day","year","depth"))
+# Now we need to step up some vectors for our NetGAM time-series transformation (vectors are MOY and DayofTS -- see NetGAM documentation)
+colz <- colsplit(rownames(dfCLRFilt),"_",c("spot","num","month","day","year","depth"))
 vec <- rep(1:12, length=192)
 vec <- as.data.frame(vec)
 vec$year <- rep(3:18, each=12)
