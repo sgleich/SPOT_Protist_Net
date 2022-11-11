@@ -16,11 +16,11 @@ qiime tools import --type 'FeatureData[Sequence]' --input-path pr2_version_4.14.
 ```
 Import PR2 taxonomy information as qiime artifact: 
 ```
-qiime tools import --type 'FeatureData[Taxonomy]' --input-path pr2_version_4.14.0_SSU_mothur.txt --output-path pr2_v4_14_tax.qza
+qiime tools import --type 'FeatureData[Taxonomy]' --input-format HeaderlessTSVTaxonomyFormat --input-path pr2_version_4.14.0_SSU_mothur.txt --output-path pr2_v4_14_tax.qza
 ```
 Extract V4 reads from PR2 sequences:
 ```
-qiime feature-classifier extract-reads --i-sequences pr2_v4_14.qza --p-f-primer CCAGCASCYGCGGTAATTCC --p-r-primer ACTTTCGTTCTTGATYRA --p-trunc-len 150 --o-reads v4_extracts_v14.qza
+qiime feature-classifier extract-reads --i-sequences pr2_v4_14.qza --p-f-primer CCAGCASCYGCGGTAATTCC --p-r-primer ACTTTCGTTCTTGATYRA --o-reads v4_extracts_v14.qza
 ```
 Train the V4 classifier: 
 ```
