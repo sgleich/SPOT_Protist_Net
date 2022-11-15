@@ -70,7 +70,7 @@ qiime dada2 denoise-paired
   ```
   ## Assign taxonomy 
   ```
- qiime feature-classifier classify-sklearn --i-classifier pr2_v4_v14_classifier.qza --i-reads ASVs2/rep-seqs.qza --o-classification ASVs2/tax_sklearn.qza
+ qiime feature-classifier classify-sklearn --i-classifier PR2_V14_Classifier.qza --i-reads ASVs/rep-seqs.qza --o-classification ASVs/tax_sklearn.qza
   ```
   ## Convert qza files to TSV
   ```
