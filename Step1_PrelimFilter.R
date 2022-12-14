@@ -123,9 +123,34 @@ colnames(dfDCMCLR) <- namez
 # Run NetGAM for DCM samples
 netGAMDCM <- netGAM.df(dfDCMCLR,MOY=dfDCMMonth,MCount=dfDCMDay,clrt=FALSE)
 
-# Save dataframes that will be used for eLSA network runs
-netGAM5<- as.data.frame(t(netGAM5))
-netGAMDCM <- as.data.frame(t(netGAMDCM))
+# Make transformed dataframes into matricies
+netGAM5 <- as.matrix(netGAM5)
+netGAMDCM <- as.matrix(netGAMDCM)
+
+# Run graphical lasso network
+lams  <- pulsar::getLamPath(pulsar::getMaxCov(netGAMDCM), .01, len=30)
+hugeargs <- list(lambda=lams, verbose=FALSE)
+out5 <- pulsar::batch.pulsar(netGAMDCM, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
+opt <- out5$stars
+n <- opt$opt.index
+# Get output adjacency matrix from graphical lasso model
+fit <- pulsar::refit(out5)
+fit2 <- fit$refit
+fit.fin <- fit2$stars
+fit.fin <- as.matrix(fit.fin)
+fit.fin <- as.data.frame(fit.fin)
+colnames(fit.fin) <- colnames(netGAM5)
+rownames(fit.fin)<- colnames(netGAM5)
+fit.fin <- as.matrix(fit.fin)
+
+dim(fit.fin)
+
+g <- graph_from_adjacency_matrix(fit.fin,mode="undirected")
+plot(g,vertex.label=NA,vertex.size=6)
+length(V(g))
+
+write.csv(fit.fin,"Glasso_DCM_SPOT.csv")
+
 
 ### Run eLSA ###
 # Command to run eLSA on server - networks for surface and DCM were run separately. 
