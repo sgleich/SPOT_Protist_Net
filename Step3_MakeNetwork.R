@@ -1,15 +1,26 @@
 ### SPOT Network Analysis ###
 ### Pre-processing (Filtering + GAM-transforming) ###
 ### By: Samantha Gleich ###
-### Last Updated: 12/14/22 ###
+### Last Updated: 12/28/22 ###
 
 # Load libraries
+library(devtools)
 library(tidyverse)
 library(compositions)
 library(NetGAM)
 library(mgcv)
 library(reshape2)
+library(taglasso)
+library(parallel)
+library(mgcv)
+library(huge)
+library(pulsar)
+library(batchtools)
+library(ape)
+library(corrplot)
+library(stringi)
 
+set.seed(10)
 # Load in the counts dataframe from qiime2 and the manifest used to run the qiime2 pipeline
 counts <- read.delim("feature-table.tsv",header=TRUE,row.names=1)
 manifest <- read.delim("manifest.txt",header=FALSE,sep=",")
@@ -123,12 +134,14 @@ colnames(dfDCMCLR) <- namez
 # Run NetGAM for DCM samples
 netGAMDCM <- netGAM.df(dfDCMCLR,MOY=dfDCMMonth,MCount=dfDCMDay,clrt=FALSE)
 
-# Make transformed dataframes into matricies
+# Save dataframes that will be used for eLSA network runs
+# netGAM5<- as.data.frame(t(netGAM5))
+# netGAMDCM <- as.data.frame(t(netGAMDCM))
 netGAM5 <- as.matrix(netGAM5)
 netGAMDCM <- as.matrix(netGAMDCM)
 
 # Run graphical lasso network
-lams  <- pulsar::getLamPath(pulsar::getMaxCov(netGAMDCM), .01, len=30)
+lams  <- pulsar::getLamPath(pulsar::getMaxCov(netGAM5), .01, len=30)
 hugeargs <- list(lambda=lams, verbose=FALSE)
 out5 <- pulsar::batch.pulsar(netGAMDCM, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
 opt <- out5$stars
@@ -149,9 +162,4 @@ g <- graph_from_adjacency_matrix(fit.fin,mode="undirected")
 plot(g,vertex.label=NA,vertex.size=6)
 length(V(g))
 
-write.csv(fit.fin,"Glasso_DCM_SPOT.csv")
-
-
-### Run eLSA ###
-# Command to run eLSA on server - networks for surface and DCM were run separately. 
-# lsa_compute SPOT_5m_Filtered_GAM_Nov2022.txt SPOT_5m_Filtered_GAM_Nov2022_out.txt -p perm -r 1 -s 122 -d 1 -n none 
+write.csv(fit.fin,"Glasso_5m_SPOT_Dec28.csv")
