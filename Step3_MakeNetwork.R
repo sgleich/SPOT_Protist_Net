@@ -1,5 +1,5 @@
 ### SPOT Network Analysis ###
-### Pre-processing (Filtering + GAM-transforming) ###
+### Pre-processing (Filtering + GAM-transforming) and Network Analysis (Graphical lasso) ###
 ### By: Samantha Gleich ###
 ### Last Updated: 12/28/22 ###
 
