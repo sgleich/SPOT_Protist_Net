@@ -29,45 +29,52 @@ inter1 <- colsplit(interEdge$Tax1,";",c("super1","k1","p1","c1","o1","f1","g1","
 inter2 <- colsplit(interEdge$Tax2,";",c("super2","k2","p2","c2","o2","f2","g2","s2"))
 interEdge <- cbind(interEdge,inter1,inter2)
 
-subs <- subset(pidaPar,Genus.org1 %in% interEdge$g1 | Genus.org2 %in% interEdge$g1 |Genus.org1 %in% interEdge$g2 | Genus.org2 %in% interEdge$g2)
+genera <- c(unique(interEdge$g1,unique(interEdge$g2)))
+genera <- unique(genera)
+genera <- colsplit(genera,"_",c("keep","other"))
+genera <- genera$keep
 
-# Make parasitism subnetwork
-interEdge <- read.csv("Surf_DCM_Edges.csv",header=TRUE,row.names=1)
-interEdge$V1 <- str_remove_all(interEdge$V1,"S_")
-interEdge$V2 <- str_remove_all(interEdge$V2,"S_")
-tax <- read.delim("taxonomy_90.tsv",header=TRUE,row.names=NULL)
-tax$Confidence <- NULL
-colnames(tax) <- c("V1","Tax1")
-interEdge <- left_join(interEdge,tax)
-colnames(tax) <- c("V2","Tax2")
-interEdge <- left_join(interEdge,tax)
-
-interEdgePara <- subset(interEdge,grepl("Syndiniales",interEdge$Tax1)|grepl("Syndiniales",interEdge$Tax2))
-keep <- c("Prorocentrum","Karlodinium","Heterocapsa","Gymnodinium","Gyrodinium","Pelagostrobilidium","Gonyaulax","Tripos")
-outPara <- NULL
-for (i in 1:length(keep)){
-  keepI <- keep[i]
-  subs1 <- subset(interEdgePara,grepl(paste(keepI),interEdgePara$Tax1))
-  subs2 <- subset(interEdgePara,grepl(paste(keepI),interEdgePara$Tax2))
-  fin <- rbind(subs1,subs2)
-  outPara <- rbind(outPara,fin)
+pidaGenera <- c(unique(pidaPar$Genus.org1,unique(pidaPar$Genus.org2)))
+pidaGenera <- unique(pidaGenera)
+keeperz <- NULL
+for (i in 1:length(genera)){
+  g <- genera[i]
+  if (g %in% pidaGenera){
+    print(g)
+    keeperz <- c(keeperz,g)
+  }
 }
-outPara2 <- subset(interEdgePara,grepl("Syndiniales",interEdgePara$Tax1) & grepl("Syndiniales",interEdgePara$Tax2))
-outPara <- rbind(outPara,outPara2)
-outParaG1 <- subset(outPara,grepl("Group-I-",outPara$Tax1)|grepl("Group-I-",outPara$Tax2))
-outParaG1 <- subset(outParaG1,grepl("Cilio",outParaG1$Tax1)|grepl("Cilio",outParaG1$Tax2))
-outParaG2 <- subset(outPara,grepl("Group-II-",outPara$Tax1)|grepl("Group-II-",outPara$Tax2))
-outParaG2 <- subset(outParaG2,!grepl("Cilio",outParaG2$Tax1)|grepl("Cilio",outParaG2$Tax2))
-outPara <- rbind(outParaG1,outParaG2)
-outPara <- subset(outPara,!grepl("Group-III",outPara$Tax1))
-outPara <- subset(outPara,!grepl("Group-III",outPara$Tax2))
-outPara <- subset(outPara,!grepl("Group-IV",outPara$Tax1))
-outPara <- subset(outPara,!grepl("Group-IV",outPara$Tax2))
-outPara <- subset(outPara,!grepl("Group-V",outPara$Tax1))
-outPara <- subset(outPara,!grepl("Group-V",outPara$Tax2))
-outPara$Tax1 <- NULL
-outPara$Tax2 <- NULL
-outPara <- as.matrix(outPara)
+keeperz <- keeperz[-(4)]
+keeperz <- keeperz[-(7)]
+
+dinoSyn <- keeperz[c(3:6,8:10)]
+cilSyn <- keeperz[c(1:2)]
+diaCer <- keeperz[c(7,11)]
+
+interEdge <- interEdge[c(1:4)]
+synG1 <- subset(interEdge,grepl("Group-I-",interEdge$Tax1)|grepl("Group-I-",interEdge$Tax2))
+synG2 <- subset(interEdge,grepl("Group-II-",interEdge$Tax1)|grepl("Group-II-",interEdge$Tax2))
+cerc<- subset(interEdge,grepl("Cercoz",interEdge$Tax1)|grepl("Cercoz",interEdge$Tax2))
+
+# Group I Syndiniales (Infect ciliates)
+Strob <- subset(synG1,grepl("Strombidium",synG1$Tax1)|grepl("Strombidium",synG1$Tax2))
+Pelago <- subset(synG1,grepl("Pelagostrobilidium",synG1$Tax1)|grepl("Pelagostrobilidium",synG1$Tax2))
+
+# Group II Syndiniales (Infect Dinoflagellate)
+Proro <- subset(synG2,grepl("Prorocentrum",synG2$Tax1)|grepl("Prorocentrum",synG2$Tax2))
+Gyro <- subset(synG2,grepl("Gyrodinium",synG2$Tax1)|grepl("Gyrodinium",synG2$Tax2))
+Gony <- subset(synG2,grepl("Gonyaulax",synG2$Tax1)|grepl("Gonyaulax",synG2$Tax2))
+Trip <- subset(synG2,grepl("Tripos",synG2$Tax1)|grepl("Tripos",synG2$Tax2))
+Hetero<- subset(synG2,grepl("Heterocapsa",synG2$Tax1)|grepl("Heterocapsa",synG2$Tax2))
+Gymno<- subset(synG2,grepl("Gymnodinium",synG2$Tax1)|grepl("Gymnodinium",synG2$Tax2))
+Karlo<- subset(synG2,grepl("Karlodinium",synG2$Tax1)|grepl("Karlodinium",synG2$Tax2))
+
+# Cercozoa no matches to either diatom genus
+
+full <- rbind(Strob,Pelago,Proro,Gyro,Gony,Trip,Hetero,Gymno,Karlo)
+full <- full[c(1:2)]
+
+outPara <- as.matrix(full)
 
 # Plot 
 outG <-graph_from_data_frame(outPara,directed=FALSE)
@@ -180,7 +187,7 @@ to  <-  match( connect$to, vertices$name)
 ggraph(mygraph, layout = 'dendrogram', circular = TRUE) + 
   geom_node_point(aes(filter = leaf, x = x*1.05, y=y*1.05)) +
   geom_conn_bundle(data = get_con(from = from, to = to), alpha=0.5, colour="grey", width=0.7) +
-  geom_node_text(aes(x = x*1.1, y=y*1.1, filter = leaf, label=name, angle = angle, hjust=hjust), size=1.5, alpha=1) +
+  #geom_node_text(aes(x = x*1.1, y=y*1.1, filter = leaf, label=name, angle = angle, hjust=hjust), size=1.5, alpha=1) +
   theme_void() +
   theme(
     legend.position="none",
@@ -188,4 +195,4 @@ ggraph(mygraph, layout = 'dendrogram', circular = TRUE) +
   ) +
   expand_limits(x = c(-1.2, 1.2), y = c(-1.2, 1.2))+theme(legend.position = "right")+geom_node_point(aes(filter = leaf, x = x*1.05, y=y*1.05, colour=group),   size=2) +
   scale_colour_manual(name="Taxonomic Groups",values= c(taxCols))+ggtitle("")
-ggsave("../ParasitismRaw.pdf",width=8,height=6)
+ggsave("../Parasitism.pdf",width=8,height=6)
