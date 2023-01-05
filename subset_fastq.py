@@ -1,16 +1,26 @@
 def main():
-    fileIn1 = open("try.txt", "r")
-    fileIn2 = open("fastqtry.txt", "r")
-    fileOut = open("syn_seqs.fasta","w")
+    fileIn1 = open("syndiniales_asvs.txt", "r")
+    fileIn2 = open("dna-sequences.fasta", "r")
+    fileOut = open("syndiniales_seqs.fasta","w")
 
-    for i, line in enumerate(fileIn2):
-        if i % 2 == 0:
-            seq=line.replace(">","")
-        if i % 2 ==1:
-            seq2=line
-            if seq in fileIn1:
-                print(">",seq,sep="",end="",file=fileOut)
-                print(seq2,end="",file=fileOut)
+    all = fileIn1.readlines()
+
+    irofile = iter(fileIn2)
+    for line in irofile:
+        if ">" in line:
+            seqName=line.replace(">","")
+            for item in all:
+                if item==seqName:
+                    seqSeq = next(irofile)
+                    print(">",seqName,sep="",end="",file=fileOut)
+                    print(seqSeq,end="",file=fileOut)
+
+
+    fileIn1.close()
+    fileIn2.close()
+    fileOut.close()
+
+
 
 
 main()
