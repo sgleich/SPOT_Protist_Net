@@ -1,11 +1,13 @@
 ### SPOT Network Analysis ###
 ### Process Random Forest Output ###
 ### By: Samantha Gleich ###
-### Last Updated: 1/2/23 ###
+### Last Updated: 1/5/23 ###
 
-# colz <- c("#9786DA","#82E1C1","#DA8860","#87E56C","#D6D768","#86B7D2","#D8AEC9","#DE63AD","darkgoldenrod1","brown1")
+# Colors to use for all taxonomic analyses
+taxCols <- c("#E1746D","#76C3D7","#DE5AB1","#D5E0AF","#DED3DC","#87EB58","#D4DC60","#88E5D3","#88AAE1","#DBA85C","#8B7DDA","#9A8D87","#D99CD1","#B649E3","#7EDD90")
+names(taxCols) <- c("Chlorophyte","Ciliate","Cryptophyte","Diatom","Dinoflagellate","Fungi","Haptophyte","MAST","Other Alveolate","Other Archaeplastida","Other Eukaryote","Other Stramenopile","Rhizaria","Syndiniales","Unknown Eukaryote")
 
-rfOut <- read.csv("../randomForest_Results_Dec2022.csv",header=TRUE,row.names=1)
+rfOut <- read.csv("../randomForest_Results_January2023.csv",header=TRUE,row.names=1)
 y <- unique(rfOut$Y)
 asv <- 0
 env <- 0
@@ -28,7 +30,7 @@ for(i in 1:length(unique(y))){
   if (subs2[1,5]=="ASV+ Environment"){
     both_namez <- c(both_namez,subs[1,7])
     both <- both+1}
-  }
+}
 
 # Let's clean up the output
 fin <- data.frame(name=c(asv_namez)) 
@@ -70,14 +72,14 @@ fin$Taxon <- NULL
 finSum <- fin %>% group_by(tax,category) %>% tally()
 
 # Get ready to plot
-colrs <- randomcoloR::distinctColorPalette(length(unique(fin$tax)))
+# colrs <- randomcoloR::distinctColorPalette(length(unique(fin$tax)))
 finSum$category <- factor(finSum$category,levels=c("ASVs","ASV + Environment","Environment"))
 
-ggplot(finSum,aes(x=category,y=n,fill=tax))+geom_bar(stat="identity",color="grey20")+scale_fill_manual(name="Taxonomic Group",values=c(colrs))+theme_classic()+ylab("Number of ASVs")+xlab("Random Forest Predictors")+scale_x_discrete(guide = guide_axis(angle = 45),labels=c("ASVs Only","ASVs + Environmental Variables","Environmental Variables Only"))
-# ggsave("RF_Output.pdf")
+ggplot(finSum,aes(x=category,y=n,fill=tax))+geom_bar(stat="identity",color="grey20")+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))+theme_classic()+ylab("Number of ASVs")+xlab("Random Forest Predictors")+scale_x_discrete(guide = guide_axis(angle = 45),labels=c("ASVs Only","ASVs + Environmental Variables","Environmental Variables Only"))
+ggsave("../RF_Output.pdf",width=7,height=6)
 
 # Now we identify "clusters" of organisms that were best predicted by environmental variables
-rfPerVar <- read.csv("../randomForest_Env.csv",header=TRUE,row.names=1)
+rfPerVar <- read.csv("../randomForest_Results_Env_January2023.csv",header=TRUE,row.names=1)
 
 # We will limit our cluster analysis to ASVs whose variability in abundances could be explained by enviornmental at > 30%
 dfEnv <- subset(rfOut,Predictors=="Environment")
@@ -145,15 +147,15 @@ rownames(dfZscore) <- paste(dfZscore$community,rownames(dfZscore),sep="_")
 dfZscore$community <- NULL
 
 # Add environmental data to z-score transformed ASV abundances 
-env <- read.csv("../SPOT_Env_Update_2022.csv",header=TRUE)
-envNew <- env[c(3:4,7:30)]
-envNew$DayLengthYest <- NULL
+env <- read.csv("../SPOT_Env_Final_2023.csv",header=TRUE)
+env$Month <- NULL
+env$Date <- NULL
 
 dfZscore <- as.data.frame(t(dfZscore))
 colz <- colsplit(rownames(dfZscore),"_",c("spot","Cruise","Month","Day","Year","Depth"))
 dfZscore$Depth <- colz$Depth
 dfZscore$Cruise <- colz$Cruise
-all <- left_join(dfZscore,envNew)
+all <- left_join(dfZscore,env)
 
 # Plot communities
 j %>% group_by(Param) %>% tally() %>% arrange(desc(n))
@@ -164,7 +166,7 @@ subsTmp <- subset(all,select=c(grepl("CTDTMP",colnames(all))))
 subsTmp <- as.data.frame(t(subsTmp))
 subsTmp <- subsTmp %>% summarize_all(mean) %>% as.data.frame()
 subsTmp <- data.frame(t(subsTmp))
-envB <- all[c(23:ncol(all))]
+envB <- all[c(24:ncol(all))]
 finTmp <- cbind(subsTmp,envB)
 finTmp <- subset(finTmp,!is.na(CTDTMP))
 pTmp <- ggplot(finTmp,aes(x=CTDTMP,y=t.subsTmp.))+geom_point(shape=21,fill=colz[1],color="black")+theme_classic()+ggtitle("Temperature Community (# ASVs = 3)")+xlab("Temperature (°C)")+ylab("Mean Community Z-score")+xlim(0,25)
@@ -176,10 +178,10 @@ subsCyan <- subset(subsCyan,select=c(!grepl("cyanos_PA",colnames(subsCyan))))
 subsCyan <- as.data.frame(t(subsCyan))
 subsCyan <- subsCyan %>% summarize_all(mean) %>% as.data.frame()
 subsCyan <- data.frame(t(subsCyan))
-envB <- all[c(23:ncol(all))]
+envB <- all[c(24:ncol(all))]
 finCyan <- cbind(subsCyan,envB)
 finCyan<- subset(finCyan,!is.na(cyanos))
-pCyan <- ggplot(finCyan,aes(x=cyanos,y=t.subsCyan.))+geom_point(shape=21,fill=colz[2],color="black")+theme_classic()+ggtitle("Cyanobacterial Community (# ASVs = 4)")+xlab("Relative Abundance of Free-living Cyanobacteria")+ylab("Mean Community Z-score")
+pCyan <- ggplot(finCyan,aes(x=cyanos,y=t.subsCyan.))+geom_point(shape=21,fill=colz[2],color="black")+theme_classic()+ggtitle("Cyanobacterial Community (# ASVs = 5)")+xlab("Relative Abundance of Free-living Cyanobacteria")+ylab("Mean Community Z-score")
 pCyan
 
 # Day of Year
@@ -187,10 +189,10 @@ subsDay <- subset(all,select=c(grepl("DayOfYear",colnames(all))))
 subsDay <- as.data.frame(t(subsDay))
 subsDay <- subsDay %>% summarize_all(mean) %>% as.data.frame()
 subsDay <- data.frame(t(subsDay))
-envB <- all[c(23:ncol(all))]
+envB <- all[c(24:ncol(all))]
 finDay <- cbind(subsDay,envB)
 finDay<- subset(finDay,!is.na(DayOfYear))
-pDay <- ggplot(finDay,aes(x=DayOfYear,y=t.subsDay.))+geom_point(shape=21,fill=colz[3],color="black")+theme_classic()+ggtitle("Day of Year Community (# ASVs = 3)")+xlab("Day of Year")+ylab("Mean Community Z-score")
+pDay <- ggplot(finDay,aes(x=DayOfYear,y=t.subsDay.))+geom_point(shape=21,fill=colz[3],color="black")+theme_classic()+ggtitle("Day of Year Community (# ASVs = 4)")+xlab("Day of Year")+ylab("Mean Community Z-score")
 pDay
 
 # SSH
@@ -198,10 +200,10 @@ subsSsh <- subset(all,select=c(grepl("SLA",colnames(all))))
 subsSsh<- as.data.frame(t(subsSsh))
 subsSsh <- subsSsh %>% summarize_all(mean) %>% as.data.frame()
 subsSsh <- data.frame(t(subsSsh))
-envB <- all[c(23:ncol(all))]
+envB <- all[c(24:ncol(all))]
 finSsh <- cbind(subsSsh,envB)
 finSsh<- subset(finSsh,!is.na(SLA))
-pSsh <- ggplot(finSsh,aes(x=SLA,y=t.subsSsh.))+geom_point(shape=21,fill=colz[4],color="black")+theme_classic()+ggtitle("Sea Surface Height (# ASVs = 3)")+xlab("Sea Surface Height (m)")+ylab("Mean Community Z-score")
+pSsh <- ggplot(finSsh,aes(x=SLA,y=t.subsSsh.))+geom_point(shape=21,fill=colz[4],color="black")+theme_classic()+ggtitle("Sea Surface Height Community (# ASVs = 4)")+xlab("Sea Surface Height (m)")+ylab("Mean Community Z-score")
 pSsh
 
 # Fluorescence
@@ -209,10 +211,10 @@ subsFlu <- subset(all,select=c(grepl("CTDFLUOR",colnames(all))))
 subsFlu<- as.data.frame(t(subsFlu))
 subsFlu <- subsFlu %>% summarize_all(mean) %>% as.data.frame()
 subsFlu <- data.frame(t(subsFlu))
-envB <- all[c(23:ncol(all))]
+envB <- all[c(24:ncol(all))]
 finFlu <- cbind(subsFlu,envB)
 finFlu<- subset(finFlu,!is.na(CTDFLUOR))
-pFlu <- ggplot(finFlu,aes(x=CTDFLUOR,y=t.subsFlu.))+geom_point(shape=21,fill=colz[5],color="black")+theme_classic()+ggtitle(expression("Chlorophyll"~italic(a)~"(# ASVs = 2)"))+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{-1}*")"))+ylab("Mean Community Z-score")
+pFlu <- ggplot(finFlu,aes(x=CTDFLUOR,y=t.subsFlu.))+geom_point(shape=21,fill=colz[5],color="black")+theme_classic()+ggtitle(expression("Chlorophyll"~italic(a)~"Community (# ASVs = 2)"))+xlab(expression("Chlorophyll"~italic(a)~"("*mu*"g L"^{-1}*")"))+ylab("Mean Community Z-score")
 pFlu
 
 # Nitrate
@@ -270,8 +272,8 @@ finCyanPA<- subset(finCyanPA,!is.na(cyanos_PA))
 pCyanPA <- ggplot(finCyanPA,aes(x=cyanos_PA,y=t.subsCyanPA.))+geom_point(shape=21,fill=colz[10],color="black")+theme_classic()+ggtitle("Particle-associated cyanobacteria (# ASVs = 1)")+xlab("Relative abundance of particle-associated cyanobacteria")+ylab("Mean Community Z-score")
 pCyanPA
 
-pCyan+pTmp+pDay+pSsh+pFlu+pNo3+pSar+pBeam+pOxy+pCyanPA+plot_layout(ncol = 4)
-ggsave("../try.pdf",width=18,height=9)
+pCyan+pDay+pSsh+pTmp+pFlu+plot_layout(ncol = 3)
+ggsave("../try.pdf",width=13,height=7)
 
 # Let's visualize these clusters
 interEdge <- read.csv("Surf_DCM_edges.csv",header=TRUE,row.names=1)
@@ -321,5 +323,5 @@ dev.off()
 names$x <- 1
 names$y <- 2
 colorz <- c(colz,"grey")
-ggplot(names,aes(x=x,y=y,fill=Param))+geom_point(shape=21)+scale_fill_manual(values=c(colorz),breaks=c("CTDTMP","cyanos","DayOfYear","SLA","CTDFLUOR","NO3","sar11_PA","CTDBEAM","CTDOXY","cyanos_PA",NA),labels=c("Temperature","Relative abundance of free-living cyanobacteria","Day of Year","Sea surface height","Chlorophyll a","Nitrate","Relative abundance of particle-associated SAR11","Beam attenuation","Oxygen","Relative abundance of particle-associated cyanobacteria","Not best predicted by environmental covariates"))+theme_classic()
+ggplot(names,aes(x=x,y=y,fill=Param))+geom_point(shape=21)+scale_fill_manual(values=c(colorz),breaks=c("CTDTMP","cyanos","DayOfYear","SLA","CTDFLUOR","NO3","sar11_PA","CTDBEAM","CTDOXY","cyanos_PA",NA),labels=c("Temperature","Relative abundance of free-living cyanobacteria","Day of Year","Sea surface height","Chlorophyll a","Nitrate","Relative abundance of particle-associated SAR11","Beam attenuation","Oxygen","Relative abundance of particle-associated cyanobacteria","< 30% variability explained by environmental variables"))+theme_classic()
 ggsave("../legend.pdf")
