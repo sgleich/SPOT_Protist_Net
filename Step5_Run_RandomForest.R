@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Run Random Forest Analysis ###
 ### By: Samantha Gleich ###
-### Last Updated: 1/2/23 ###
+### Last Updated: 1/5/23 ###
 
 # Load libraries
 library(randomForest)
@@ -10,6 +10,7 @@ library(tidyverse)
 library(reshape2)
 library(caret)
 library(yardstick)
+library(compositions)
 
 # Set seed for reproducibility
 set.seed(100)
@@ -25,7 +26,7 @@ namez$depth <- ifelse(grepl("5m",namez$g),"5m","DCM")
 namez$fin <- paste(namez$c,namez$d,namez$e,namez$f,namez$depth,sep="_")
 
 # Make a new dataframe with old sample name info and new sample name info
-fin <- data.frame(namez=c(manifest$V1),new=c(namez$fin))
+fin <- data.frame(namez=c(as.character(manifest$V1)),new=c(namez$fin))
 fin$new <- paste("SPOT",fin$new,sep="_")
 fin <- fin %>% distinct(new,.keep_all = TRUE)
 
@@ -51,7 +52,7 @@ s <- c(paste("V",1:389,sep="_"))
 colnames(dfCLR) <- s
 
 # Load environmental data 
-env <- read.csv("../SPOT_Env_Update_2022.csv",header=TRUE,row.names=1)
+env <- read.csv("../SPOT_Env_Final_2023.csv",header=TRUE)
 
 # Match up environmental data to order of ASV table samples (not necessarily ordered by time)
 colz <- colsplit(rownames(dfCLR),"_",c("spot","Cruise","Month","Day","Year","Depth"))
@@ -62,9 +63,7 @@ dfCLR$Depth <- NULL
 dfCLR$Cruise <- NULL
 
 # Now we can select just the environmental variables we care about
-envNew <- all[c(395,397:411,413:418)]
-envNew$CTDPRS <- NULL
-envNew$CTDCOND <- NULL
+envNew <- all[c(394,396:412)]
 envNew <- missForest(envNew)
 envNew <- envNew$ximp
 
@@ -93,7 +92,7 @@ for (i in 1:ncol(total)){
     fixedWindow = TRUE, savePredictions = "all")
   
   tune_grid <- expand.grid(
-    mtry = c(2,5,10,15,19))
+    mtry = c(2,5,10,15,18))
   
   res_asv <- caret::train(
     data.frame(X_train),
@@ -125,7 +124,7 @@ for (i in 1:ncol(total)){
     fixedWindow = TRUE, savePredictions = "all")
   
   tune_grid2 <- expand.grid(
-    mtry = c(2,5,10,15,19))
+    mtry = c(2,5,10,15,18))
   
   
   res_env <- caret::train(
@@ -166,7 +165,7 @@ for (i in 1:ncol(total)){
     fixedWindow = TRUE, savePredictions = "all")
   
   tune_grid3 <- expand.grid(
-    mtry = c(2,5,10,15,19))
+    mtry = c(2,5,10,15,18))
   
   
   res_all <- caret::train(
@@ -189,5 +188,5 @@ for (i in 1:ncol(total)){
   
   out <- rbind(out,RMSE_asv,RMSE_env,RMSE_all)}
 
-write.csv(out,"randomForest_Results_Dec2022b.csv")
-write.csv(out2,"randomForest_Results_Env.csv")
+write.csv(out,"randomForest_Results_January2023.csv")
+write.csv(out2,"randomForest_Results_Env_January2023.csv")
