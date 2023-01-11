@@ -57,25 +57,24 @@ plot(gDcmOnly,vertex.size=4,vertex.label=NA,edge.width=0.5,layout=layout_with_kk
 dev.off()
 
 pdf("Intersect_Network.pdf")
-plot(gInterOnly,vertex.size=4,vertex.label=NA,edge.width=0.5,layout=layout_with_kk(gInterOnly),vertex.color="grey",vertex.color="grey20",edge.color="olivedrab4",main="Associations found at surface and DCM")
+plot(gInterOnly,vertex.size=4,vertex.label=NA,edge.width=0.5,layout=layout_with_kk(gInterOnly),vertex.color="grey",vertex.color="grey20",edge.color="olivedrab4",main="Associations found at surface and DCM (merged network)")
 dev.off()
 
 # Network statistics
-length(V(gSurfOnly))
-length(V(gDcmOnly))
 length(V(gInterOnly))
-length(E(gSurfOnly))
-length(E(gDcmOnly))
 length(E(gInterOnly))
-V(gSurfOnly)$deg <- degree(gSurfOnly)
-V(gDcmOnly)$deg <- degree(gDcmOnly)
 V(gInterOnly)$deg <- degree(gInterOnly)
-mean(V(gSurfOnly)$deg)
-mean(V(gDcmOnly)$deg)
 mean(V(gInterOnly)$deg)
-mean_distance(gSurfOnly)
-mean_distance(gDcmOnly)
 mean_distance(gInterOnly)
+transitivity(gInterOnly,type="global")
+
+dfDeg <- data.frame(name=c(V(gInterOnly)$name),deg=c(V(gInterOnly)$deg))
+dfDeg <- dfDeg %>% arrange(desc(deg)) %>% as.data.frame()
+dfDeg$name <- str_replace_all(dfDeg$name,"S_","")
+t <- read.delim("taxonomy_90.tsv",header=TRUE)
+t$Confidence <- NULL
+colnames(t)[1] <- "name"
+dfDeg <- left_join(dfDeg,t)
 
 # Save edgelists 
 interEdge <- as.data.frame(interEdge)
