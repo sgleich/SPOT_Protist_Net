@@ -53,47 +53,46 @@ dfTax <- subset(dfTax,grepl("DCM",rownames(dfTax)))
 dfTax <- subset(dfTax,rownames(dfTax)!="SPOT_115_2_16_12_5m"& rownames(dfTax)!="SPOT_115_2_16_12_DCM")
 # Make NMDS plot with bray-curtis dissimilarity
 normDf <- decostand(dfTax,method="total")
-distDf <- vegdist(normDf, method = "bray")
-distMat <- as.matrix(distDf, labels = T)
-runNMDS <-metaMDS(distMat,distance = "bray",k = 2,maxit = 999, trymax = 500,wascores = TRUE)
-runNMDS$stress # Record stress = 0.21
-mdsDf <- data.frame(runNMDS$points)
-colz <- colsplit(rownames(mdsDf),"_",c("spot","Cruise","month","day","year","Depth"))
 env <- read.csv(file.choose(),header=TRUE)
+colz <- colsplit(rownames(normDf),"_",c("spot","Cruise","month","day","year","Depth"))
 colz <- left_join(colz,env)
-
-
-mdsDf$Month <- colz$Month
-#colre <- randomcoloR::distinctColorPalette(12)
-mdsDf[is.na(mdsDf)] <- 2
-
-fun_color_range <- colorRampPalette(c("darkgreen","white","darkgoldenrod3")) 
-my_colors <- fun_color_range(12)    
-
-nmds1 <- ggplot(mdsDf,aes(MDS1,MDS2,fill=factor(Month)))+geom_point(size=2,color="black",shape=21)+scale_fill_manual(values=c(my_colors),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+guides(fill = guide_legend(override.aes=list(shape=21)))+theme_classic()+xlab("NMDS1")+ylab("NMDS2")+geom_vline(xintercept = 0,linetype="dotted")+geom_hline(yintercept = 0,linetype="dotted")+ggtitle("")
-nmds
-
-mytable <- colz[c(11,13:19,21:27,28:34)]
-mytable$DayLengthYest <- NULL
+mytable <- colz[c(10:32)]
+# mytable$CSDepth <- NULL
 mytable <- missForest::missForest(mytable)
 mytable <- mytable$ximp
-fit <- envfit(runNMDS, mytable)
 
-out <- p.adjust(fit$vectors$pvals,method="fdr")
-out <- out[out < 0.01]
-out <- data.frame(out)
+decorana (normDf) # Axis length > 3 means CCA vs RDA
 
-fitDf <- data.frame(fit$vectors$arrows)
-fitDf$r <- fit$vectors$r
-fitDf <- subset(fitDf,rownames(fitDf) %in% rownames(out))
-fitDf$originX <- mean(mdsDf$MDS1)
-fitDf$originY <- mean(mdsDf$MDS2)
-fitDf <- fitDf %>% arrange(desc(abs(r)))
+ccaOut <- cca(normDf~.,mytable)
+ccaDf <- data.frame(ccaOut$CCA$u)
+try <- ccaOut$CCA$eig
+try
 
-outP <- ggplot(mdsDf,aes(MDS1,MDS2,fill=factor(Month)))+geom_point(size=2,color="black",shape=21)+scale_fill_manual(name="Month",values=c(my_colors),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+guides(fill = guide_legend(override.aes=list(shape=21)))+theme_classic()+xlab("NMDS1")+ylab("NMDS2")+geom_vline(xintercept = 0,linetype="dotted")+geom_hline(yintercept = 0,linetype="dotted")+ggtitle("Surface (5 m)")+geom_segment(aes(x = fitDf[1,4], y = fitDf[1,5], xend = fitDf[1,1] , yend = fitDf[1,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[2,4], y = fitDf[2,5], xend = fitDf[2,1] , yend = fitDf[2,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[3,4], y = fitDf[3,5], xend = fitDf[3,1] , yend = fitDf[3,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[4,4], y = fitDf[4,5], xend = fitDf[4,1] , yend = fitDf[4,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[5,4], y = fitDf[5,5], xend = fitDf[5,1] , yend = fitDf[5,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)
+ccaDf$Month <- colz$Month
+#colre <- randomcoloR::distinctColorPalette(12)
+ccaDf[is.na(ccaDf)] <- 2
+
+fun_color_range <- colorRampPalette(c("darkgreen","white","darkgoldenrod3")) 
+my_colors <- fun_color_range(12)   
+
+finalmodel<- ordistep(ccaOut, scope=formula(ccaOut))
+vif.cca(finalmodel)
+anovOut <- anova.cca(finalmodel, by="terms")
+anovOutSub <- subset(anovOut,`Pr(>F)` < 0.01)
+keep <- rownames(anovOutSub)
+
+fitDf <- data.frame(ccaOut$CCA$biplot)
+fitDf <- fitDf[c(1:2)]
+fitDf$x <- mean(ccaDf$CCA1)
+fitDf$y <- mean(ccaDf$CCA2)
+
+t <- envfit(ccaOut,mytable)
+t <- data.frame(t$vectors$arrows)
+fitDf$CCA1 <- t$CCA1
+fitDf$CCA2 <- t$CCA2
+
+fitDf <- subset(fitDf,rownames(fitDf) %in% keep)
+
+outP <- ggplot(ccaDf,aes(CCA1,CCA2,fill=factor(Month)))+geom_point(size=2,color="black",shape=21)+scale_fill_manual(name="Month",values=c(my_colors),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+guides(fill = guide_legend(override.aes=list(shape=21)))+theme_classic()+xlab("CCA1 (37.0%)")+ylab("CCA2 (35.0%)")+geom_vline(xintercept = 0,linetype="dotted")+geom_hline(yintercept = 0,linetype="dotted")+ggtitle("DCM")+geom_segment(aes(x = fitDf[1,3], y = fitDf[1,4], xend = fitDf[1,1] , yend = fitDf[1,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[2,3], y = fitDf[2,4], xend = fitDf[2,1] , yend = fitDf[2,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[3,3], y = fitDf[3,4], xend = fitDf[3,1] , yend = fitDf[3,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[4,3], y = fitDf[4,4], xend = fitDf[4,1] , yend = fitDf[4,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[5,3], y = fitDf[5,4], xend = fitDf[5,1] , yend = fitDf[5,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)#+geom_segment(aes(x = fitDf[6,3], y = fitDf[6,4], xend = fitDf[6,1] , yend = fitDf[6,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[7,3], y = fitDf[7,4], xend = fitDf[7,1] , yend = fitDf[7,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[8,3], y = fitDf[8,4], xend = fitDf[8,1] , yend = fitDf[8,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)
 outP
-outP2
-
-ggsave("../trySurf.pdf")
-
-tableSurf <- fitDf
+ggsave("../../DCM.pdf",width=8,height=6)
