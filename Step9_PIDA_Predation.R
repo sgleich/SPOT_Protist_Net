@@ -31,10 +31,14 @@ interEdge <- cbind(interEdge,inter1,inter2)
 
 subs1 <- subset(pidaPred,Genus.org1 %in% interEdge$g1 & Genus.org2 %in% interEdge$g2)
 subs2 <- subset(pidaPred,Genus.org2 %in% interEdge$g1 & Genus.org1 %in% interEdge$g2)
-subsFin <- c(unique(subs1$Genus.org1),unique(subs1$Genus.org2),unique(subs2$Genus.org1),unique(subs2$Genus.org2))
-subsFin <- unique(subsFin)
+subsFin <- data.frame(Var1=c(subs1$Genus.org1,subs2$Genus.org1),Var2=c(subs1$Genus.org2,subs2$Genus.org2))
+subsFin$Var3 <- paste(subsFin$Var1,subsFin$Var2,sep="_")
+subsFin$Var4 <- paste(subsFin$Var2,subsFin$Var1,sep="_")
 
-outPred <- subset(interEdge,g1 %in% subsFin & g2 %in% subsFin)
+interEdge$Var <- paste(interEdge$g1,interEdge$g2,sep="_")
+outPred1 <- subset(interEdge,Var %in% subsFin$Var3)
+outPred2 <- subset(interEdge,Var %in% subsFin$Var4)
+outPred <- rbind(outPred1,outPred2)
 outPred <- outPred[c(1:2)]
 outPred <- as.matrix(outPred)
 
@@ -93,12 +97,12 @@ v <- c(outSum$Final2,chlor$num,cil$num,cry$num,dia$num,dino$num,hapto$num,mast$n
 
 # Hierarchy df
 hierarchy <- data.frame(from=outDf$Final2,to=outDf$Low)
-tmp <- data.frame(from=c(rep("Origin",5)),to=c("Dinoflagellate","Haptophyte","Ciliate","Chlorophyte","Cryptophyte"))
+tmp <- data.frame(from=c(rep("Origin",2)),to=c("Dinoflagellate","Haptophyte"))
 hierarchy <- rbind(tmp,hierarchy)
 
 # Vertices df
 vertices <- data.frame(name=outDf$Low,value=1,group=outDf$Final2)
-tmp2 <- data.frame(name=c("Origin","Dinoflagellate","Haptophyte","Ciliate","Chlorophyte","Cryptophyte"),value=c(1,1,1,1,1,1),group=c(NA,"Origin","Origin","Origin","Origin","Origin"))
+tmp2 <- data.frame(name=c("Origin","Dinoflagellate","Haptophyte"),value=c(1,1,1),group=c(NA,"Origin","Origin"))
 vertices <- rbind(tmp2,vertices)
 
 # Mygraph
@@ -149,7 +153,7 @@ to  <-  match( connect$to, vertices$name)
 ggraph(mygraph, layout = 'dendrogram', circular = TRUE) + 
   geom_node_point(aes(filter = leaf, x = x*1.05, y=y*1.05)) +
   geom_conn_bundle(data = get_con(from = from, to = to), alpha=0.5, colour="grey", width=0.7) +
-  geom_node_text(aes(x = x*1.1, y=y*1.1, filter = leaf, label=name, angle = angle, hjust=hjust), size=1.5, alpha=1) +
+  #geom_node_text(aes(x = x*1.1, y=y*1.1, filter = leaf, label=name, angle = angle, hjust=hjust), size=1.5, alpha=1) +
   theme_void() +
   theme(
     legend.position="none",
@@ -157,4 +161,4 @@ ggraph(mygraph, layout = 'dendrogram', circular = TRUE) +
   ) +
   expand_limits(x = c(-1.2, 1.2), y = c(-1.2, 1.2))+theme(legend.position = "right")+geom_node_point(aes(filter = leaf, x = x*1.05, y=y*1.05, colour=group),   size=2) +
   scale_colour_manual(name="Taxonomic Groups",values= c(taxCols))+ggtitle("")
-ggsave("../PredRaw.pdf",width=8,height=6)
+ggsave("../../Pred.pdf",width=8,height=6)
