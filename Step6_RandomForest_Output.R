@@ -1,11 +1,11 @@
 ### SPOT Network Analysis ###
 ### Process Random Forest Output ###
 ### By: Samantha Gleich ###
-### Last Updated: 1/5/23 ###
+### Last Updated: 1/12/23 ###
 
 # Colors to use for all taxonomic analyses
 taxCols <- c("#E1746D","#76C3D7","#DE5AB1","#D5E0AF","#DED3DC","#87EB58","#D4DC60","#88E5D3","#88AAE1","#DBA85C","#8B7DDA","#9A8D87","#D99CD1","#B649E3","#7EDD90")
-names(taxCols) <- c("Chlorophyte","Ciliate","Cryptophyte","Diatom","Dinoflagellate","Fungi","Haptophyte","MAST","Other Alveolate","Other Archaeplastida","Other Eukaryote","Other Stramenopile","Rhizaria","Syndiniales","Unknown Eukaryote")
+names(taxCols) <- c("Chlorophyte","Ciliate","Cryptophyte","Diatom","Dinoflagellate","Fungi","Haptophyte","MAST","Other Alveolate","Other Archaeplastida","Other Eukaryote","Other Stramenopiles","Rhizaria","Syndiniales","Unknown Eukaryote")
 
 rfOut <- read.csv("../randomForest_Results_January2023.csv",header=TRUE,row.names=1)
 y <- unique(rfOut$Y)
@@ -58,7 +58,6 @@ taxz$fin <- ifelse(taxz$Phylum=="Chlorophyta","Chlorophyte",taxz$fin)
 taxz$fin <- ifelse(taxz$Phylum=="Cryptophyta","Cryptophyte",taxz$fin)
 taxz$fin <- ifelse(taxz$Phylum=="Haptophyta","Haptophyte",taxz$fin)
 taxz$fin <- ifelse(taxz$Phylum=="Ciliophora","Ciliate",taxz$fin)
-taxz$fin <- ifelse(taxz$Phylum=="Metazoa","Metazoa",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Stramenopiles" & is.na(taxz$fin),"Other Stramenopiles",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Archaeplastida" & is.na(taxz$fin),"Other Archaeplastids",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Alveolata" & is.na(taxz$fin),"Other Alveolate",taxz$fin)
@@ -81,6 +80,35 @@ ggsave("../RF_Output.pdf",width=7,height=6)
 # Now we identify "clusters" of organisms that were best predicted by environmental variables
 rfPerVar <- read.csv("../randomForest_Results_Env_January2023.csv",header=TRUE,row.names=1)
 
+subs <- subset(rfPerVar,name %in% env_namez)
+subs <- left_join(subs,tax)
+
+taxz <- colsplit(subs$Taxon,";",c("Supergroup","Kingdom","Phylum","Class","Order","Family","Genus","Species"))
+taxz$fin <- ifelse(taxz$Class=="Syndiniales","Syndiniales",NA)
+taxz$fin <- ifelse(taxz$Class=="Dinophyceae","Dinoflagellate",taxz$fin)
+taxz$fin <- ifelse(taxz$Class=="Bacillariophyta","Diatom",taxz$fin)
+taxz$fin <- ifelse(grepl("MAST",taxz$Class),"MAST",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Rhizaria","Rhizaria",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Chlorophyta","Chlorophyte",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Cryptophyta","Cryptophyte",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Haptophyta","Haptophyte",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Ciliophora","Ciliate",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Stramenopiles" & is.na(taxz$fin),"Other Stramenopiles",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Archaeplastida" & is.na(taxz$fin),"Other Archaeplastids",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Alveolata" & is.na(taxz$fin),"Other Alveolate",taxz$fin)
+taxz$fin <- ifelse(is.na(taxz$fin),"Other Eukaryote",taxz$fin)
+unique(taxz$fin)
+
+subs$taxFin <- taxz$fin
+subsSum <- subs %>% group_by(taxFin,Param) %>% tally()
+
+subsSum$Param <- factor(subsSum$Param,levels=c("MEI","DayOfYear","NO2.NO3","cyanos_PA","Chla","cyanos","O2Wink","sar11_PA","CTDBEAM","DayLength","NH4","PP","SST"))
+
+ggplot(subsSum,aes(x=Param,y=n,fill=taxFin))+geom_bar(stat="identity",color="black")+theme_classic()+theme(axis.text.x = element_text(angle = 45, hjust=1))+xlab("Environmental Predictors")+ylab("Number of ASVs")+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))+scale_x_discrete(labels=c("MEI","Day of Year","Nitrate","Particle-associated cyanobacteria",expression("Chlorophyll"~italic(a)),"Free-living cyanobacteria","Oxygen (Winkler)","Particle-associated SAR11","Beam attenuation","Day Length","Ammonium","Average monthly PP (satellite)","Average monthly SST (satellite)"))+ylim(0,15)
+
+ggsave("../FigureS1b.pdf",width=10,height=8)
+
+### CLUSTER ANALYSIS??!! ###
 # We will limit our cluster analysis to ASVs whose variability in abundances could be explained by enviornmental at > 30%
 dfEnv <- subset(rfOut,Predictors=="Environment")
 dfEnv <- subset(dfEnv, PercentVar > 30)
@@ -147,7 +175,7 @@ rownames(dfZscore) <- paste(dfZscore$community,rownames(dfZscore),sep="_")
 dfZscore$community <- NULL
 
 # Add environmental data to z-score transformed ASV abundances 
-env <- read.csv("../SPOT_Env_Final_2023.csv",header=TRUE)
+env <- read.csv("../SPOT_Env_NewJan11.csv",header=TRUE)
 env$Month <- NULL
 env$Date <- NULL
 
@@ -158,18 +186,24 @@ dfZscore$Cruise <- colz$Cruise
 all <- left_join(dfZscore,env)
 
 # Plot communities
-j %>% group_by(Param) %>% tally() %>% arrange(desc(n))
+
+j2 <- j %>% group_by(Param) %>% tally() %>% arrange(desc(n))
 # colz <- randomcoloR::distinctColorPalette(10)
+ggplot(j2,aes(x=reorder(Param,-n),y=n))+geom_bar(stat="identity",color="black")+theme_classic()+theme(axis.text.x = element_text(angle = 45, hjust=1))+geom_text(aes(label=n),vjust=-0.5)+scale_x_discrete(labels=c("MEI","Temperature","Free-living cyanobacteria","Particle-associated SAR11","Sea surface height","Day of year","Average monthly SST (satellite)",expression("Average monthly Chlorophyll"~italic(a)~"(satellite)"),"Day length","Ammonium",expression("Chlorophyll"~italic(a)),"Salinity","Particle-associated cyanobacteria","Oxygen (Winkler)","Average monthly primary production (satellite)"))+ylim(0,21)+xlab("Environmental Predictors")+ylab("Number of ASVs")
+ggsave("../FigureSX2.pdf",width=8,height=6)
+
+colrs <- distinctColorPalette(10)
 
 # TEMPERATURE
 subsTmp <- subset(all,select=c(grepl("CTDTMP",colnames(all))))
+subsTmp$CTDTMP <- NULL
 subsTmp <- as.data.frame(t(subsTmp))
 subsTmp <- subsTmp %>% summarize_all(mean) %>% as.data.frame()
 subsTmp <- data.frame(t(subsTmp))
-envB <- all[c(24:ncol(all))]
+envB <- all[c(62:ncol(all))]
 finTmp <- cbind(subsTmp,envB)
 finTmp <- subset(finTmp,!is.na(CTDTMP))
-pTmp <- ggplot(finTmp,aes(x=CTDTMP,y=t.subsTmp.))+geom_point(shape=21,fill=colz[1],color="black")+theme_classic()+ggtitle("Temperature Community (# ASVs = 3)")+xlab("Temperature (°C)")+ylab("Mean Community Z-score")+xlim(0,25)
+pTmp <- ggplot(finTmp,aes(x=CTDTMP,y=t.subsTmp.))+geom_point(shape=21,fill=colrs[1],color="black")+theme_classic()+ggtitle("Temperature Community (# ASVs = 3)")+xlab("Temperature (°C)")+ylab("Mean Community Z-score")+xlim(0,25)
 pTmp
 
 # CYANOS
@@ -271,6 +305,18 @@ finCyanPA <- cbind(subsCyanPA,envB)
 finCyanPA<- subset(finCyanPA,!is.na(cyanos_PA))
 pCyanPA <- ggplot(finCyanPA,aes(x=cyanos_PA,y=t.subsCyanPA.))+geom_point(shape=21,fill=colz[10],color="black")+theme_classic()+ggtitle("Particle-associated cyanobacteria (# ASVs = 1)")+xlab("Relative abundance of particle-associated cyanobacteria")+ylab("Mean Community Z-score")
 pCyanPA
+
+# MEI
+subsMEI<- subset(all,select=c(grepl("MEI",colnames(all))))
+subsMEI$MEI <- NULL
+subsMEI<- as.data.frame(t(subsMEI))
+subsMEI<- subsMEI %>% summarize_all(mean) %>% as.data.frame()
+subsMEI <- data.frame(t(subsMEI))
+envB <- all[c(62:ncol(all))]
+finMEI <- cbind(subsMEI,envB)
+finMEI<- subset(finMEI,!is.na(MEI))
+pMEI <- ggplot(finMEI,aes(x=MEI,y=t.subsMEI.))+geom_point(shape=21,fill=colrs[10],color="black")+theme_classic()+ggtitle("MEI")+xlab("MEI")+ylab("Mean Community Z-score")
+pMEI
 
 pCyan+pDay+pSsh+pTmp+pFlu+plot_layout(ncol = 3)
 ggsave("../try.pdf",width=13,height=7)
