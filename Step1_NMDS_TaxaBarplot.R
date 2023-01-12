@@ -58,6 +58,12 @@ nmds <- ggplot(mdsDf,aes(MDS1,MDS2,fill=Depth))+geom_point(size=2,color="black",
 nmds
 # ggsave("NMDS_Nov2022.pdf") # Save figure
 
+distMat <- as.data.frame(distMat)
+distMat$depth <- ifelse(grepl("5m",rownames(distMat)),"5m","DCM")
+depth <- distMat$depth
+distMat$depth <- NULL
+out <- anosim(distDf,depth)
+
 # Let's add the taxonomy information associated with each ASV to our dataframe
 # tax <- read.delim(file.choose(),header=TRUE)
 # tax <- tax[c(1:2)]
