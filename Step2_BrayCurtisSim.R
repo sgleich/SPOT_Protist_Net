@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Plot Bray-curtis similarity as a function of month and year lags ###
 ### By: Samantha Gleich ###
-### Last Updated: 11/14/22 ###
+### Last Updated: 2/7/23 ###
 
 # Libraries
 library(lubridate)
@@ -35,11 +35,16 @@ rownames(dfNew) <- dfNew$new
 dfNew$namez <- NULL
 dfNew$new <- NULL
 
+dfNew <- subset(dfNew,rownames(dfNew)!="SPOT_115_2_16_12_5m"& rownames(dfNew)!="SPOT_115_2_16_12_DCM")
+
 # Make a "date" column in ASV counts dataframe
-datez <- colsplit(rownames(dfNew),"_",c("spot","num","month","day","year","depth"))
-dfNew$month <- datez$month
-dfNew$day <- datez$day
-dfNew$year <- datez$year
+datez <- colsplit(rownames(dfNew),"_",c("spot","Cruise","m","d","y","Depth"))
+env <- read.csv(file.choose(),header=TRUE)
+datez <- left_join(datez,env)
+datez2 <- colsplit(datez$Date,"/",c("month","day","year"))
+dfNew$month <- datez2$month
+dfNew$day <- datez2$day
+dfNew$year <- datez2$year
 dfNew$date <- as.Date(with(dfNew, paste(year, month, day,sep="-")), "%y-%m-%d")
 
 # Remove month, day, year columns since we have a date column now
@@ -83,7 +88,7 @@ distMat <- as.matrix(distMat)
 # Surface mantel test
 braySurfDis <- vegdist(asvSurf,method="bray")
 braySurfDis <- as.matrix(braySurfDis)
-surfM <- mantel(distMat, braySurfDis, method = "spearman", permutations = 1000, na.rm = TRUE)
+surfM <- mantel.test(distMat, braySurfDis, method = "spearman", permutations = 1000, na.rm = TRUE)
 
 # Set up data for plot of bray-curtis similarity vs. lag
 braySurfDf <- as.data.frame(braySurf)
@@ -149,7 +154,7 @@ distMat2 <- as.matrix(distMat2)
 # DCM mantel test
 brayDCMDis <- vegdist(asvDCM,method="bray")
 brayDCMDis <- as.matrix(brayDCMDis)
-dcmM <- mantel(distMat2, brayDCMDis, method = "spearman", permutations = 1000, na.rm = TRUE)
+dcmM <- mantel.test(distMat2, brayDCMDis, method = "spearman", permutations = 1000, na.rm = TRUE)
 
 # Set up data for plot of bray-curtis similarity vs. lag
 brayDCMDf <- as.data.frame(brayDCM)
@@ -206,15 +211,36 @@ SurfPlot <- total.month%>%filter(depth=="Surface")%>%ggplot(aes(x=month,y=m))+ge
 DCMPlot <- total.month%>%filter(depth=="DCM")%>%ggplot(aes(x=month,y=m))+geom_point()+geom_line()+geom_errorbar(aes(ymin=m-se, ymax=m+se), width=.2,position=position_dodge(.3))+theme_classic()+scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12))+xlab("Month Lag")+ylab("Mean Bray-Curis Similarity (+/- SE)")+ggtitle("DCM - Month Lag")+scale_y_continuous(limits=c(0.20,0.40),breaks=c(0.2,0.25,0.3,0.35,0.4))
 
 # Plot Bray-curtis similarity vs. year lag
-total.year <- totalAll%>%filter(year!=0 & year !=15)%>%group_by(year,depth)%>%summarize(m=mean(value),s=sd(value))
+env <- read.csv(file.choose(),header=TRUE)
+env2 <- data.frame(Cruise=c(env$Cruise),MonthSamp=c(env$Month))
+env2 <- env2 %>% distinct(Cruise,.keep_all = TRUE) %>% as.data.frame()
+colz <- colsplit(totalAll$Var1,"_",c("SPOT","Cruise","M","D","Y","D"))
+colz <- data.frame(Cruise=c(colz$Cruise))
+colz2 <- left_join(colz,env2)
+totalAll$MonthSamp <- colz2$MonthSamp
 
-totalNum <- totalAll%>%filter(year!=0 & year != 15)%>%group_by(year,depth)%>%tally()
+totalAll$season <- ifelse(totalAll$MonthSamp==3,"Spring","Summer")
+totalAll$season <- ifelse(totalAll$MonthSamp==4,"Spring",totalAll$season)
+totalAll$season <- ifelse(totalAll$MonthSamp==5,"Spring",totalAll$season)
+totalAll$season <- ifelse(totalAll$MonthSamp==9,"Autumn",totalAll$season)
+totalAll$season <- ifelse(totalAll$MonthSamp==10,"Autumn",totalAll$season)
+totalAll$season <- ifelse(totalAll$MonthSamp==11,"Autumn",totalAll$season)
+totalAll$season <- ifelse(totalAll$MonthSamp==12,"Winter",totalAll$season)
+totalAll$season <- ifelse(totalAll$MonthSamp==1,"Winter",totalAll$season)
+totalAll$season <- ifelse(totalAll$MonthSamp==2,"Winter",totalAll$season)
+
+total.year <- totalAll%>%filter(year!=0 & year !=15)%>%group_by(year,depth,season)%>%summarize(m=mean(value),s=sd(value))
+
+totalNum <- totalAll%>%filter(year!=0 & year != 15)%>%group_by(year,depth,season)%>%tally()
 
 total.year <- left_join(total.year,totalNum)
 total.year$se <- total.year$s/sqrt(total.year$n)
 
-SurfPlot2 <- total.year%>%filter(depth=="Surface")%>%ggplot(aes(x=year,y=m))+geom_point()+geom_line()+geom_errorbar(aes(ymin=m-se, ymax=m+se), width=.2,position=position_dodge(.3))+theme_classic()+scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14))+xlab("Year Lag")+ylab("Mean Bray-Curis Similarity (+/- SE)")+ggtitle("Surface (5 m) - Year Lag")+scale_y_continuous(limits=c(0.20,0.40),breaks=c(0.2,0.25,0.3,0.35,0.4))
 
-DCMPlot2 <- total.year%>%filter(depth=="DCM")%>%ggplot(aes(x=year,y=m))+geom_point()+geom_line()+geom_errorbar(aes(ymin=m-se, ymax=m+se), width=.2,position=position_dodge(.3))+theme_classic()+scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14))+xlab("Year Lag")+ylab("Mean Bray-Curis Similarity (+/- SE)")+ggtitle("DCM - Year Lag")+scale_y_continuous(limits=c(0.20,0.40),breaks=c(0.2,0.25,0.3,0.35,0.4))
 
-ggarrange(SurfPlot,DCMPlot,SurfPlot2,DCMPlot2)
+SurfPlot2<- total.year%>%filter(depth=="Surface")%>%ggplot(aes(x=year,y=m,group=season,fill=season,color=season))+geom_point(shape=21)+geom_line()+geom_errorbar(aes(ymin=m-se, ymax=m+se), width=.2,position=position_dodge(.3))+theme_classic()+scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14))+xlab("Year Lag")+ylab("Mean Bray-Curis Similarity (+/- SE)")+ggtitle("Surface (5 m) - Year Lag")+scale_y_continuous(limits=c(0.1,0.5),breaks=c(0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5))+scale_color_manual(name="Season",breaks=c("Winter","Spring","Summer","Autumn"),values=c("dodgerblue","darkolivegreen4","goldenrod1","firebrick2"))+scale_fill_manual(name="Season",breaks=c("Winter","Spring","Summer","Autumn"),values=c("dodgerblue","darkolivegreen4","goldenrod1","firebrick2"))
+
+DCMPlot2 <- total.year%>%filter(depth=="DCM")%>%ggplot(aes(x=year,y=m,group=season,fill=season,color=season))+geom_point()+geom_line()+geom_errorbar(aes(ymin=m-se, ymax=m+se), width=.2,position=position_dodge(.3))+theme_classic()+scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14))+xlab("Year Lag")+ylab("Mean Bray-Curis Similarity (+/- SE)")+ggtitle("DCM - Year Lag")+scale_y_continuous(limits=c(0.1,0.5),breaks=c(0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5))+scale_color_manual(name="Season",breaks=c("Winter","Spring","Summer","Autumn"),values=c("dodgerblue","darkolivegreen4","goldenrod1","firebrick2"))+scale_fill_manual(name="Season",breaks=c("Winter","Spring","Summer","Autumn"),values=c("dodgerblue","darkolivegreen4","goldenrod1","firebrick2"))
+
+SurfPlot+DCMPlot+SurfPlot2+DCMPlot2+plot_layout(ncol=2,guides = "collect")
+ggsave("../../TRY.pdf",width=12,height=8)
