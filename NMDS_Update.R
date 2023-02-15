@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Taxa barplots and NMDS ###
 ### By: Samantha Gleich ###
-### Last Updated: 2/7/23 ###
+### Last Updated: 2/14/23 ###
 
 # Load libraries
 library(tidyverse)
@@ -52,7 +52,7 @@ dfTax <- as.data.frame(t(dfTax))
 dfTax <- subset(dfTax,grepl("DCM",rownames(dfTax)))
 dfTax <- subset(dfTax,rownames(dfTax)!="SPOT_115_2_16_12_5m"& rownames(dfTax)!="SPOT_115_2_16_12_DCM")
 # Make NMDS plot with bray-curtis dissimilarity
-normDf <- decostand(dfTax,method="total")
+normDf <- decostand(dfTax,method="rclr")
 # normDf <- clr(dfTax)
 # normDf <- as.data.frame(normDf)
 env <- read.csv(file.choose(),header=TRUE)
@@ -60,39 +60,36 @@ colz <- colsplit(rownames(normDf),"_",c("spot","Cruise","month","day","year","De
 colz <- left_join(colz,env)
 mytable <- colz[c(10:32)]
 # mytable$CSDepth <- NULL
+set.seed(100)
 mytable <- missForest::missForest(mytable)
 mytable <- mytable$ximp
 
-decorana (normDf) # Axis length > 3 means CCA vs RDA
+# decorana (normDf)
+out<- rda(normDf ~ ., data = mytable)
+rdaDf <- data.frame(out$CCA$u)
 
-ccaOut <- cca(normDf~.,mytable)
-ccaDf <- data.frame(ccaOut$CCA$u)
-try <- ccaOut$CCA$eig
-try
 
-ccaDf$Month <- colz$Month
-#colre <- randomcoloR::distinctColorPalette(12)
-ccaDf[is.na(ccaDf)] <- 2
+rdaDf$Month <- colz$Month
+rdaDf[is.na(rdaDf)] <- 2
 
-finalmodel<- ordistep(ccaOut, scope=formula(ccaOut))
+finalmodel<- ordistep(out, scope=formula(out))
 vif.cca(finalmodel)
 anovOut <- anova.cca(finalmodel, by="terms")
 anovOutSub <- subset(anovOut,`Pr(>F)` < 0.01)
 keep <- rownames(anovOutSub)
 
-fitDf <- data.frame(ccaOut$CCA$biplot)
+fitDf <- data.frame(out$CCA$biplot)
 fitDf <- fitDf[c(1:2)]
-fitDf$x <- mean(ccaDf$CCA1)
-fitDf$y <- mean(ccaDf$CCA2)
+fitDf$x <- mean(rdaDf$RDA1)
+fitDf$y <- mean(rdaDf$RDA2)
 
-t <- envfit(ccaOut,mytable)
-t <- data.frame(t$vectors$arrows)
-fitDf$CCA1 <- t$CCA1
-fitDf$CCA2 <- t$CCA2
+# t <- envfit(out,mytable)
+# t <- data.frame(t$vectors$arrows)
+# fitDf$RDA1 <- t$RDA1
+# fitDf$RDA2 <- t$RDA2
 
 fitDf <- subset(fitDf,rownames(fitDf) %in% keep)
 
-outP <- ggplot(ccaDf,aes(CCA1,CCA2,fill=factor(Month),shape=as.factor(Month)))+geom_point(size=2,color="black")+scale_fill_manual(name="Month",values=c("dodgerblue","dodgerblue","darkolivegreen4","darkolivegreen4","darkolivegreen4","goldenrod1","goldenrod1","goldenrod1","firebrick2","firebrick2","firebrick2","dodgerblue"),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+scale_shape_manual(name="Month",values=c(21,22,21,22,24,21,22,24,21,22,24,24),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+theme_classic()+xlab("CCA1 (41.5%)")+ylab("CCA2 (34.5%)")+geom_vline(xintercept = 0,linetype="dotted")+geom_hline(yintercept = 0,linetype="dotted")+ggtitle("DCM")+geom_segment(aes(x = fitDf[1,3], y = fitDf[1,4], xend = fitDf[1,1] , yend = fitDf[1,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[2,3], y = fitDf[2,4], xend = fitDf[2,1] , yend = fitDf[2,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[3,3], y = fitDf[3,4], xend = fitDf[3,1] , yend = fitDf[3,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[4,3], y = fitDf[4,4], xend = fitDf[4,1] , yend = fitDf[4,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[5,3], y = fitDf[5,4], xend = fitDf[5,1] , yend = fitDf[5,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[6,3], y = fitDf[6,4], xend = fitDf[6,1] , yend = fitDf[6,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)#+geom_segment(aes(x = fitDf[7,3], y = fitDf[7,4], xend = fitDf[7,1] , yend = fitDf[7,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)#+geom_segment(aes(x = fitDf[8,3], y = fitDf[8,4], xend = fitDf[8,1] , yend = fitDf[8,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)
+outP <- ggplot(rdaDf,aes(RDA1,RDA2,fill=factor(Month),shape=as.factor(Month)))+geom_point(size=2,color="black")+scale_fill_manual(name="Month",values=c("dodgerblue","dodgerblue","darkolivegreen4","darkolivegreen4","darkolivegreen4","goldenrod1","goldenrod1","goldenrod1","firebrick2","firebrick2","firebrick2","dodgerblue"),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+scale_shape_manual(name="Month",values=c(21,22,21,22,24,21,22,24,21,22,24,24),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+theme_classic()+xlab("RDA1 (3.63%)")+ylab("RDA2 (2.08%)")+geom_vline(xintercept = 0,linetype="dotted")+geom_hline(yintercept = 0,linetype="dotted")+ggtitle("DCM")+geom_segment(aes(x = fitDf[1,3], y = fitDf[1,4], xend = fitDf[1,1] , yend = fitDf[1,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[2,3], y = fitDf[2,4], xend = fitDf[2,1] , yend = fitDf[2,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[3,3], y = fitDf[3,4], xend = fitDf[3,1] , yend = fitDf[3,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[4,3], y = fitDf[4,4], xend = fitDf[4,1] , yend = fitDf[4,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[5,3], y = fitDf[5,4], xend = fitDf[5,1] , yend = fitDf[5,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[6,3], y = fitDf[6,4], xend = fitDf[6,1] , yend = fitDf[6,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[7,3], y = fitDf[7,4], xend = fitDf[7,1] , yend = fitDf[7,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[8,3], y = fitDf[8,4], xend = fitDf[8,1] , yend = fitDf[8,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)
 outP
-outP2+outP+plot_layout(ncol=2,guides = "collect")
-ggsave("../../DCM.pdf",width=8,height=6)
+ggsave("../../DCM.pdf",width=6,height=4)
