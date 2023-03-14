@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
-### Taxa barplots and NMDS ###
+### Taxa barplots ###
 ### By: Samantha Gleich ###
-### Last Updated: 11/11/22 ###
+### Last Updated: 3/14/23 ###
 
 # Load libraries
 library(tidyverse)
@@ -38,31 +38,6 @@ tax <- read.delim(file.choose(),header=TRUE)
 tax <- tax[c(1:2)]
 dfNew <- as.data.frame(t(dfNew))
 dfNew$Feature.ID <- rownames(dfNew)
-dfTax <- left_join(dfNew,tax)
-dfTax <- subset(dfTax,grepl("Eukaryot",dfTax$Taxon))
-dfTax$Feature.ID <- NULL
-dfTax$Taxon <- NULL
-dfTax <- as.data.frame(t(dfTax))
-
-# Make NMDS plot with bray-curtis dissimilarity
-normDf <- decostand(dfTax,method="total")
-distDf <- vegdist(normDf, method = "bray")
-distMat <- as.matrix(distDf, labels = T)
-runNMDS <-metaMDS(distMat,distance = "bray",k = 2,maxit = 999, trymax = 500,wascores = TRUE)
-runNMDS$stress # Record stress = 0.21
-mdsDf <- data.frame(runNMDS$points)
-colz <- colsplit(rownames(mdsDf),"_",c("spot","num","month","day","year","depth"))
-mdsDf$Depth <- colz$depth
-
-nmds <- ggplot(mdsDf,aes(MDS1,MDS2,fill=Depth))+geom_point(size=2,color="black",shape=21)+scale_fill_manual(values=c("grey70","grey20"),name="Depth",labels=c("5 m","DCM"))+guides(fill = guide_legend(override.aes=list(shape=21)))+theme_classic()+xlab("NMDS1")+ylab("NMDS2")+geom_vline(xintercept = 0,linetype="dotted")+geom_hline(yintercept = 0,linetype="dotted")+ggtitle("")+stat_ellipse(level=0.95,aes(color=Depth))+scale_color_manual(values=c("grey70","grey20"))
-nmds
-# ggsave("NMDS_Nov2022.pdf") # Save figure
-
-distMat <- as.data.frame(distMat)
-distMat$depth <- ifelse(grepl("5m",rownames(distMat)),"5m","DCM")
-depth <- distMat$depth
-distMat$depth <- NULL
-out <- anosim(distDf,depth)
 
 # Let's add the taxonomy information associated with each ASV to our dataframe
 # tax <- read.delim(file.choose(),header=TRUE)
@@ -110,9 +85,11 @@ dfAvg <- dfSum %>% group_by(fin,Month,Depth) %>% summarize(m=mean(s))%>%as.data.
 # Let's label our months as opposed to having #s
 dfAvg$Month <- factor(dfAvg$Month,levels=c(1,2,3,4,5,6,7,8,9,10,11,12),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))
 
-dfAvg$Depth <- ifelse(dfAvg$Depth=="5m","5 m",dfAvg$Depth)
+dfAvg$Depth <- ifelse(dfAvg$Depth=="5m","Surface",dfAvg$Depth)
+
+dfAvg$Depth <- factor(dfAvg$Depth,levels=c("Surface","DCM"))
 
 colrs <- randomcoloR::distinctColorPalette(length(unique(dfAvg$fin)))
- 
+
 dfAvg %>% ggplot(aes(x=Month,y=m))+geom_area(aes(fill = fin, group = fin),position="fill")+theme_classic()+xlab("Month")+ylab("Relative Abundance")+facet_wrap(~Depth)+theme(axis.text.x = element_text(angle=45, hjust=1))+scale_fill_manual(name="Taxonomic Group",values=c(colrs))
-# ggsave("Taxa_Barplot_Nov2022.pdf")
+ggsave("Figure2_MARCH2023.pdf")
