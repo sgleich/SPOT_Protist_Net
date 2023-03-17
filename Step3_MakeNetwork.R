@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Pre-processing (Filtering + GAM-transforming) and Network Analysis (Graphical lasso) ###
 ### By: Samantha Gleich ###
-### Last Updated: 12/28/22 ###
+### Last Updated: 3/17/23 ###
 
 # Load libraries
 library(devtools)
@@ -83,7 +83,7 @@ colnames(vec)<- c("month","year","day")
 vec <- vec[9:nrow(vec),]
 vec$day <- 1:nrow(vec)
 
-env <- read.csv("../SPOT_NEW.csv",header=TRUE)
+env <- read.csv(file.choose(),header=TRUE)
 env$year <- stri_sub(env$Date, -2,-1)
 env$year <- as.numeric(as.character(env$year))
 colz <- colsplit(env$Date,"/",c("m","d","y"))
@@ -141,7 +141,7 @@ netGAM5 <- as.matrix(netGAM5)
 netGAMDCM <- as.matrix(netGAMDCM)
 
 # Run graphical lasso network
-lams  <- pulsar::getLamPath(pulsar::getMaxCov(netGAM5), .01, len=30)
+lams  <- pulsar::getLamPath(pulsar::getMaxCov(netGAMDCM), .01, len=30)
 hugeargs <- list(lambda=lams, verbose=FALSE)
 out5 <- pulsar::batch.pulsar(netGAMDCM, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
 opt <- out5$stars
@@ -162,4 +162,4 @@ g <- graph_from_adjacency_matrix(fit.fin,mode="undirected")
 plot(g,vertex.label=NA,vertex.size=6)
 length(V(g))
 
-write.csv(fit.fin,"Glasso_5m_SPOT_Dec28.csv")
+write.csv(fit.fin,"../../Glasso_DCM_SPOT_MARHC2023.csv")
