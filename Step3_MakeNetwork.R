@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Pre-processing (Filtering + GAM-transforming) and Network Analysis (Graphical lasso) ###
 ### By: Samantha Gleich ###
-### Last Updated: 3/17/23 ###
+### Last Updated: 4/3/23 ###
 
 # Load libraries
 library(devtools)
@@ -20,7 +20,6 @@ library(ape)
 library(corrplot)
 library(stringi)
 
-set.seed(10)
 # Load in the counts dataframe from qiime2 and the manifest used to run the qiime2 pipeline
 counts <- read.delim("feature-table.tsv",header=TRUE,row.names=1)
 manifest <- read.delim("manifest.txt",header=FALSE,sep=",")
@@ -48,18 +47,19 @@ dfNew$new <- NULL
 dfCLR <- clr(dfNew)
 
 # Let's separate the non-clr transformed samples by depth 
+dfNew <- subset(dfNew,rownames(dfNew)!="SPOT_115_2_16_12_5m"& rownames(dfNew)!="SPOT_115_2_16_12_DCM")
 df5 <- subset(dfNew,grepl("5m", rownames(dfNew)))
 dfDCM<- subset(dfNew,grepl("DCM", rownames(dfNew)))
 df5 <- as.data.frame(t(df5))
 dfDCM <- as.data.frame(t(dfDCM))
 
 # This is our ASV filtration step. If we include all ~30,000 ASVs in the network analysis it would take too long to run and it would be difficult to interpret the output. Instead, we will filter our surface (5 m) and DCM datasets so that only ASVs that are non-zero in > 20% of samples are included in the network analysis
-df5Filt <- subset(df5,rowSums(df5==0) <= 62) # ~60% of samples have to be non-zero
+df5Filt <- subset(df5,rowSums(df5==0) <= 98) # ~20% of samples have to be non-zero
 # Optional: Check to see how many 0s are in the dataframe for each ASV
 # df5Filt$count <- rowSums(df5Filt==0) 
 # df5Filt$count <- NULL
 
-dfDCMFilt <- subset(dfDCM,rowSums(dfDCM==0) <= 61) # ~60 % of samples have to be non-zero
+dfDCMFilt <- subset(dfDCM,rowSums(dfDCM==0) <= 96) # ~20 % of samples have to be non-zero
 # Optional: Check to see how many 0s are in the dataframe for each ASV
 # dfDCMFilt$count <- rowSums(dfDCMFilt==0)
 # dfDCMFilt$count <- NULL
@@ -118,6 +118,9 @@ namez <- paste("S",namez,sep="_")
 colnames(df5CLR) <- namez
 
 # Run NetGAM for 5m samples
+df5CLR <- as.data.frame(t(df5CLR))
+df5CLR <- df5CLR[rowSums(df5CLR == 0) < 122, ]
+df5CLR <- as.data.frame(t(df5CLR))
 netGAM5 <- netGAM.df(df5CLR,MOY=df5Month,MCount=df5Day,clrt=FALSE)
 
 # NetGAM expects month of year and day of time-series vectors (not columns). Set up vectors for DCM samples.
@@ -132,6 +135,9 @@ namez <- paste("S",namez,sep="_")
 colnames(dfDCMCLR) <- namez
 
 # Run NetGAM for DCM samples
+dfDCMCLR <- as.data.frame(t(dfDCMCLR))
+dfDCMCLR <- dfDCMCLR[rowSums(dfDCMCLR == 0) < 120, ]
+dfDCMCLR <- as.data.frame(t(dfDCMCLR))
 netGAMDCM <- netGAM.df(dfDCMCLR,MOY=dfDCMMonth,MCount=dfDCMDay,clrt=FALSE)
 
 # Save dataframes that will be used for eLSA network runs
@@ -148,18 +154,43 @@ opt <- out5$stars
 n <- opt$opt.index
 # Get output adjacency matrix from graphical lasso model
 fit <- pulsar::refit(out5)
-fit2 <- fit$refit
-fit.fin <- fit2$stars
+fit <- fit$refit
+fit.fin <- fit$stars
 fit.fin <- as.matrix(fit.fin)
 fit.fin <- as.data.frame(fit.fin)
-colnames(fit.fin) <- colnames(netGAM5)
-rownames(fit.fin)<- colnames(netGAM5)
+colnames(fit.fin) <- colnames(netGAMDCM)
+rownames(fit.fin)<- colnames(netGAMDCM)
 fit.fin <- as.matrix(fit.fin)
 
 dim(fit.fin)
 
-g <- graph_from_adjacency_matrix(fit.fin,mode="undirected")
-plot(g,vertex.label=NA,vertex.size=6)
-length(V(g))
 
-write.csv(fit.fin,"../../Glasso_DCM_SPOT_MARHC2023.csv")
+write.csv(fit.fin,"sDCM_SPOT_APRIL2023_80p.csv")
+# lambda = 0.13 (5m)
+# lambda = 0.15 (DCM)
+
+
+# Now add SCC to these associations
+
+# We can take a preliminary look at them 
+g <- read.csv("s5_SPOT_APRIL2023_80p.csv",header=TRUE,row.names=1)
+g2 <- read.csv("sDCM_SPOT_APRIL2023_80p.csv",header=TRUE,row.names=1)
+g <- as.matrix(g)
+g2 <- as.matrix(g2)
+
+g <- graph_from_adjacency_matrix(g,mode="undirected")
+g2 <- graph_from_adjacency_matrix(g2,mode="undirected")
+length(V(g))
+length(E(g))
+length(V(g2))
+length(E(g2))
+
+int <- graph.intersection(g,g2)
+Int <- data.frame(get.edgelist(int))
+Int$X1 <- str_remove_all(Int$X1,"S_")
+Int$X2 <- str_remove_all(Int$X2,"S_")
+t <- read.delim("taxonomy_90.tsv",header=TRUE)
+t <- data.frame(X1=c(t$Feature.ID),Tax1=c(t$Taxon))
+Int <- left_join(Int,t)
+colnames(t) <- c("X2","Tax2")
+Int <- left_join(Int,t)
