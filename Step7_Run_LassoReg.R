@@ -1,6 +1,6 @@
 ### SPOT LASSO ANALYSIS ###
 ### Script by: Samantha Gleich ###
-### Last modified: March 14, 2023 ###
+### Last modified: April 4, 2023 ###
 
 # Load libraries
 library(glmnet)
@@ -11,6 +11,7 @@ library(caret)
 library(yardstick)
 library(compositions)
 library(Metrics)
+library(vegan)
 
 # Set seed for reproducibility
 set.seed(100)
@@ -43,13 +44,12 @@ dfNew<- subset(dfNew,rownames(dfNew)!="SPOT_115_2_16_12_5m"& rownames(dfNew)!="S
 dfCLR <- as.data.frame(clr(dfNew))
 
 # Let's only keep those ASVs that we included in our networks
-netOut <- read.csv("Glasso_5m_SPOT_Dec28.csv",header=TRUE,row.names=1) 
-namez <- colnames(netOut)
+netOut <- read.csv(file.choose(),header=TRUE,row.names=1) 
+namez <- c(netOut$V1,netOut$V2)
+namez <- unique(namez)
 namez <- str_remove(namez,"S_")
 dfCLR <- subset(dfCLR,select=c(namez))
 namez <- colnames(dfCLR)
-# s <- c(paste("V",1:389,sep="_"))
-# colnames(dfCLR) <- s
 
 # Load environmental data 
 env <- read.csv("../SPOT_Env_NewJan11.csv",header=TRUE)
@@ -58,19 +58,22 @@ env <- read.csv("../SPOT_Env_NewJan11.csv",header=TRUE)
 colz <- colsplit(rownames(dfCLR),"_",c("spot","Cruise","Month","Day","Year","Depth"))
 dfCLR$Depth <- colz$Depth
 dfCLR$Cruise <- colz$Cruise
+dfCLR <- dfCLR %>% arrange(Cruise)
 all <- left_join(dfCLR,env)
 dfCLR$Depth <- NULL
 dfCLR$Cruise <- NULL
 
-# Now we can select just the environmental variables we care about
+# Now we can select just the environmental variables we care about/ variable that do not display multicollinearity
 set.seed(100)
-envNew <- all[c(395,397:417)]
+envNew <- all[c(1030,1032:1052)]
 envNew <- missForest(envNew)
 envNew <- envNew$ximp
+envNew$DayDiff <- NULL
+envNew$cyanos_PA <- NULL
+envNew$CTDFLUOR <- NULL
 
 # Rename CLR transformed dataframe
 total <- dfCLR
-#total <- mutate_all(total, function(x) as.numeric(as.character(x)))
 total <- cbind(total,envNew)
 envNamez <- colnames(envNew)
 `%ni%` <- Negate(`%in%`)
@@ -80,8 +83,8 @@ finalTest <- total[181:242,] # 25% of data used for test
 finalTrain <- total[1:180,] # 75% of data used for train
 
 out <- NULL
-coefs <- data.frame(a=c(1:411))
-for (i in 1:389){
+coefs <- data.frame(a=c(1:ncol(total)))
+for (i in 1:ncol(dfCLR)){
   y_train <- finalTrain[, i] # Target ASV
   X_train <- finalTrain[, -i] # Everything but target ASV
   y_test <- finalTest[,i] # Target ASV test
@@ -92,14 +95,14 @@ for (i in 1:389){
   
   l <- seq(0,1,by=0.01)
   
-  cvOut <- cv.glmnet(X_train,y_train,nfolds=15,foldid=f,standardize=FALSE,keep=TRUE,type.measure = "mse",lambda=c(l))
+  cvOut <- cv.glmnet(X_train,y_train,nfolds=15,foldid=f,keep=TRUE,type.measure = "mse",lambda=c(l),standardize=TRUE)
   
   coefOut <- coef(cvOut,s=cvOut$lambda.min)
   coefOut <- as.matrix(coefOut)
   coefOut <- as.data.frame(coefOut)
   coefs <- cbind(coefs,coefOut)
   coefOut <- subset(coefOut,s1!=0 & rownames(coefOut)!="(Intercept)")
-
+  
   envNum <- sum(rownames(coefOut) %in% envNamez)
   asvNum <- sum(rownames(coefOut) %ni% envNamez)
   
@@ -124,12 +127,6 @@ out$V4 <- as.numeric(out$V4)
 out <- subset(out, rowSums(out)!=0)
 colnames(out) <- c("Env","Asv","MSE")
 
-out$win <- ifelse(out$Env>out$Asv,"env","asv")
-out$win <- ifelse(out$Env==out$Asv,"tie",out$win)
-sum(out$win=="env")
-sum(out$win=="asv")
-sum(out$win=="tie")
-
 fin <- read.delim("taxonomy_90.tsv",header=TRUE)
 out$Feature.ID <- rownames(out)
 out <- left_join(out,fin)
@@ -153,40 +150,55 @@ unique(taxz$fin)
 out$fin <- taxz$fin
 
 # Histograms
-hist1 <- ggplot(out,aes(x=Env))+geom_histogram(color="black",fill="grey")+theme_classic()+xlab("# Significant Environmental Predictors Per ASV")+ylab("Frequency")+ggtitle("Environmental Predictors")+scale_x_continuous(breaks = seq(0, 10, by = 1))
+hist1 <- ggplot(out, aes(x=Env)) + geom_histogram(aes(y=..density..), binwidth=1,colour="black", fill="white") +
+  geom_density(alpha=.2, fill="#FF6666",adjust = 2)+theme_classic()+xlab("Number of Environmental/Biological Predictors Per Model")+ylab("Frequency")
 
-hist1b <- ggplot(out, aes(x=Env)) + geom_histogram(aes(y=..density..), binwidth=1,colour="black", fill="white") +
-  geom_density(alpha=.2, fill="#FF6666")+theme_classic()+xlab("# Significant Non-ASV Predictors Per ASV")+ylab("Frequency")
+hist2 <- ggplot(out, aes(x=Asv)) + geom_histogram(aes(y=..density..), binwidth=20,colour="black", fill="white") +
+  geom_density(alpha=.2, fill="#FF6666",adjust=2)+theme_classic()+xlab("Number of ASV Predictors Per Model")+ylab("Frequency")
+hist1 +hist2
+# ggsave("../../NEWESTTOP.pdf",width=10,height=4)
 
-hist2 <- ggplot(out,aes(x=Asv))+geom_histogram(color="black",fill="grey")+theme_classic()+xlab("# Significant ASV Predictors Per ASV")+ylab("Frequency")+ggtitle("ASV Predictors")+scale_x_continuous(breaks = seq(0, 130, by = 20))
+# Look at relative number of environmental vs. ASV predictors
+out$ratEnv <- out$Env/19
+out$ratAsv <- out$Asv/1024
+out$mod <- 1:nrow(out)
 
-hist2b <- ggplot(out, aes(x=Asv)) + geom_histogram(aes(y=..density..), binwidth=6,colour="black", fill="white") +
-  geom_density(alpha=.2, fill="#FF6666")+theme_classic()+xlab("# Significant ASV Predictors Per ASV")+ylab("Frequency")
 
-hist1b +hist2b
-ggsave("../../glmnetOut_MARCH2023.pdf",width=10,height=4)
+newDf <- data.frame(envRat =c(out$ratEnv),asvRat=c(out$ratAsv),mod=c(out$mod))
+newDf <- newDf %>% pivot_longer(cols = c("envRat","asvRat"))
 
-# Plot taxon-specific trends
-out$rat <- out$Asv/out$Env
-countz <- out %>% group_by(fin) %>%tally()
-out <- left_join(out,countz)
-asvP <- ggplot(out,aes(x=as.factor(fin),y=Asv))+geom_boxplot()+theme_classic()+theme(axis.text.x = element_text(angle = 45,hjust=1))+xlab("Taxonomic Group")+ylab("# Significant ASV Predictors")
-envP <- ggplot(out,aes(x=as.factor(fin),y=Env))+geom_boxplot()+theme_classic()+theme(axis.text.x = element_text(angle = 45,hjust=1))+xlab("Taxonomic Group")+ylab("# Significant Environmental Predictors")
-mseP <- ggplot(out,aes(x=as.factor(fin),y=MSE))+geom_boxplot()+theme_classic()+theme(axis.text.x = element_text(angle = 45,hjust=1))+xlab("Taxonomic Group")+ylab("Model MSE")
-mseP
+rat <- ggplot(newDf,aes(x=name,y=value))+geom_boxplot()+ylim(0,0.4)+theme_classic()+ylab("# of Predictors in Final Model/\nTotal # of Input Predictors")+scale_x_discrete(labels=c("ASVs","Environmental/\nBiological Variables"))+xlab("Predictor Group")
 
-envP+asvP+mseP
-ggsave("../../glmnetOut2.pdf",width=12,height=4)
 
-## Look at important predictors
+newDf2 <- data.frame(env =c(out$Env),asv=c(out$Asv),mod=c(out$mod))
+newDf2 <- newDf2 %>% pivot_longer(cols = c("env","asv"))
+
+reg <- ggplot(newDf2,aes(x=name,y=value))+geom_boxplot()+theme_classic()+ylab("# of Predictors in Final Model")+scale_x_discrete(labels=c("ASVs","Environmental/\nBiological Variables"))+xlab("Predictor Group")+ylim(0,200)
+
+reg+rat
+ggsave("../../NEWLassoReg.pdf")
+
+# Look at important predictors
 envCoef <- subset(coefs,rownames(coefs) %in% envNamez)
 envCoef$var <- rownames(envCoef)
 envCoefM <- melt(envCoef,id.vars="var") 
-envCoefM <- subset(envCoefM, value!=0)
-
 sumz <- envCoefM %>% group_by(var) %>% tally(value!=0) %>% arrange(desc(n))
 
-ggplot(sumz,aes(x=reorder(var,-n),y=n))+geom_bar(stat="identity",color="black",fill="grey")+theme_classic()+theme(axis.text.x = element_text(angle = 90,hjust=1,vjust=0.5))+xlab("Environmental Parameter")+ylab("# ASV Models Containing Environmental Predictor")+scale_x_discrete(labels=c("Primary production (Satellite)","Day of year","Day length","Nitrate + Nitrite","Chlorophyll a (Satellite)","Temperature","SST (Satellite)","Oxygen","Chlorophyll a fluorescence","MEI","Silica","Rate of change of day length","Oxygen (Winkler)","Salinity","Phosphate","Beam attenuation","Relative abundance cyanobacteria","Relative abundance particle-associated cyanobacteria","Ammonium","Relative abundance SAR11","Relative abundance particle-associated SAR11","SSH"))
+ggplot(sumz,aes(x=reorder(var,-n),y=n))+geom_bar(stat="identity",color="black",fill="grey")+theme_classic()+theme(axis.text.x = element_text(angle = 90,hjust=1,vjust=0.5))+xlab("Biological/Environmental Predictor")+ylab("# ASV Models Containing Biological/Environmental Predictor")+scale_x_discrete(labels=c("Day length","Oxygen","Silica","Chlorophyll a (satellite)","Cyanobacteria","Day of year","Oxygen (Winkler)","MEI","Ammonium","Nitrate","Primary production (satellite)","SSH (satellite)","SST (satellite)","Beam attenuation","SAR11","Salinity","Temperature","Particle-associated SAR11","Phosphate"))
+ggsave("../../NEW2.pdf",width=10,height=7)
 
-ggsave("../../glmnetOut3.pdf",width=10,height=7)
+out2 <- out %>% arrange(desc(total))
+out2 <- subset(out2,Asv!=1023)
+out2 <- subset(out2,Asv!=0)
+top10 <- out2 %>% top_frac(0.1,Asv)
+bottom10 <- out2 %>% top_frac(-0.1,Asv)
+median(top10$Env)
+median(bottom10$Env)
+wilcox.test(top10$Env,bottom10$Env)
+full <- rbind(top10,bottom10)
 
+
+hist <- out %>% filter (total < 1000 & total > 0) %>% ggplot(aes(x=total)) + geom_histogram(aes(y=..density..), binwidth=10,colour="black", fill="white") +
+  geom_density(alpha=.2, fill="#FF6666",adjust=2)+theme_classic()+xlab("Number of Predictors Per Model")+ylab("Frequency")
+hist
+ggsave("Histogram.pdf")
