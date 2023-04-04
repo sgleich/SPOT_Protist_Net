@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
-### Taxa barplots and NMDS ###
+### RDA ###
 ### By: Samantha Gleich ###
-### Last Updated: 3/14/23 ###
+### Last Updated: 4/3/23 ###
 
 # Load libraries
 library(tidyverse)
@@ -9,6 +9,7 @@ library(reshape2)
 library(ggplot2)
 library(randomcoloR)
 library(vegan)
+library(compositions)
 
 # Colors to use for all taxonomic analyses
 taxCols <- c("#E1746D","#76C3D7","#DE5AB1","#D5E0AF","#DED3DC","#87EB58","#D4DC60","#88E5D3","#88AAE1","#DBA85C","#8B7DDA","#9A8D87","#D99CD1","#B649E3","#7EDD90")
@@ -60,10 +61,12 @@ env <- read.csv(file.choose(),header=TRUE)
 colz <- colsplit(rownames(normDf),"_",c("spot","Cruise","month","day","year","Depth"))
 colz <- left_join(colz,env)
 mytable <- colz[c(10:32)]
-#mytable2$CSDepth <- NULL
+#mytable$CSDepth <- NULL
 set.seed(100)
 mytable <- missForest::missForest(mytable)
 mytable <- mytable$ximp
+
+mytable <- decostand(mytable, method = "standardize")
 
 # decorana (normDf)
 out<- rda(normDf ~ ., data = mytable)
