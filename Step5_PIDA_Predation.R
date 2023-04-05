@@ -1,47 +1,13 @@
 ### SPOT Network Analysis ###
-### PIDA Comparison ###
+### PIDA Comparison - PREDATION ###
 ### By: Samantha Gleich ###
-### Last Updated: 3/1/23 ###
+### Last Updated: 4/5/23 ###
 
 # Colors to use for all taxonomic analyses
 taxCols <- c("#E1746D","#76C3D7","#DE5AB1","#D5E0AF","#DED3DC","#87EB58","#D4DC60","#88E5D3","#88AAE1","#DBA85C","#8B7DDA","#9A8D87","#D99CD1","#B649E3","#7EDD90")
 names(taxCols) <- c("Chlorophyte","Ciliate","Cryptophyte","Diatom","Dinoflagellate","Fungi","Haptophyte","MAST","Other Alveolate","Other Archaeplastida","Other Eukaryote","Other Stramenopile","Rhizaria","Syndiniales","Unknown Eukaryote")
 
-s5 <- read.csv(file.choose(),header=TRUE,row.names=1)
-sDCM <- read.csv(file.choose(),header=TRUE,row.names=1)
-colnames(s5) <- str_remove_all(colnames(s5),"^X")
-colnames(sDCM) <- str_remove_all(colnames(sDCM),"^X")
-
-s5 <- as.matrix(s5)
-sDCM <- as.matrix(sDCM)
-
-s5[s5<0] <- -1
-s5[s5>0] <- 1
-sDCM[sDCM<0] <- -1
-sDCM[sDCM>0] <- 1
-
-
-g5m <- graph_from_adjacency_matrix(s5,mode="undirected",weighted=TRUE)
-gdcm <- graph_from_adjacency_matrix(sDCM,mode="undirected",weighted=TRUE)
-
-int <- graph.intersection(g5m,gdcm)
-
-interEdge <- as.data.frame(get.edgelist(int))
-g5mEdge <- as.data.frame(get.edgelist(g5m))
-g5mEdge$weight5 <- E(g5m)$weight
-gdcmEdge <- as.data.frame(get.edgelist(gdcm))
-gdcmEdge$weightDCM <- E(gdcm)$weight
-
-interEdge$fin1 <- paste(interEdge$V1,interEdge$V2,sep="_")
-g5mEdge$fin1 <- paste(g5mEdge$V1,g5mEdge$V2,sep="_")
-g5mEdge$fin2 <- paste(g5mEdge$V2,g5mEdge$V1,sep="_")
-gdcmEdge$fin1 <- paste(gdcmEdge$V1,gdcmEdge$V2,sep="_")
-gdcmEdge$fin2 <- paste(gdcmEdge$V2,gdcmEdge$V1,sep="_")
-
-interEdge <- left_join(interEdge,g5mEdge)
-interEdge <- left_join(interEdge,gdcmEdge)
-
-interEdge <- subset(interEdge,weight5==weightDCM)
+interEdge <- read.csv(file.choose(),header=TRUE)
 
 tax <- read.delim("taxonomy_90.tsv",header=TRUE,row.names=NULL)
 tax$Confidence <- NULL
@@ -72,11 +38,11 @@ interEdge$Var <- paste(interEdge$g1,interEdge$g2,sep="_")
 outPred1 <- subset(interEdge,Var %in% subsFin$Var3)
 outPred2 <- subset(interEdge,Var %in% subsFin$Var4)
 outPred <- rbind(outPred1,outPred2)
-
+outPred$X <- NULL
 
 # Plot 
 outG <-graph_from_data_frame(outPred,directed=FALSE)
-E(outG)$weight <- outPred$weight5
+E(outG)$weight <- outPred$weight
 outDf <- data.frame(name=c(V(outG)$name))
 colnames(outDf) <- "V2"
 outDf <- left_join(outDf,tax)
@@ -147,17 +113,17 @@ V(finalG)$namez <- low$keep
 
 
 # PLOT
-pdf("../../try.pdf",width=20,height=11)
+pdf("../../PREDATION_APRIL5.pdf",width=20,height=15)
 ggraph(finalG, layout = 'linear', circular = TRUE) + geom_edge_arc(aes(color = weight),alpha=0.6,width=1) + 
-  geom_node_text(aes(label = namez, angle = node_angle(x, y)), hjust = -0.1,size=3) +
-  geom_node_point(shape = 21, size = 4, aes(fill = fin)) +
+  geom_node_text(aes(label = namez, angle = node_angle(x, y)), hjust = -0.15,size=3) +
+  geom_node_point(shape = 21, size = 6, aes(fill = fin)) +
   theme_graph() +
-  scale_edge_color_gradientn(colours = c('indianred', 'white', 'dodgerblue')) +
+  scale_edge_color_gradientn(colours = c('indianred', 'white', 'dodgerblue'),values=c(-1,0,1)) +
   coord_fixed(xlim = c(-1.4, 1.4), ylim = c(-1.4, 1.4)) +scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))
 dev.off()
 
 # LEGEND
-outG2$x <- 1:10
-outG2$y <- 2:11
-ggplot(outG2,aes(x=x,y=y,fill=fin2))+geom_point(shape=21,size=3)+scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))+theme_classic()
+outG2$x <- 1:11
+outG2$y <- 2:12
+ggplot(outG2,aes(x=x,y=y,fill=fin1))+geom_point(shape=21,size=3)+scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))+theme_classic()
 ggsave("../../PredationLegend.pdf")
