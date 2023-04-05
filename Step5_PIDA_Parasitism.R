@@ -30,17 +30,22 @@ inter1 <- colsplit(interEdge$Tax1,";",c("super1","k1","p1","c1","o1","f1","g1","
 inter2 <- colsplit(interEdge$Tax2,";",c("super2","k2","p2","c2","o2","f2","g2","s2"))
 interEdge <- cbind(interEdge,inter1,inter2)
 
-genera <- c(unique(interEdge$g1,unique(interEdge$g2)))
-genera <- unique(genera)
-genera <- colsplit(genera,"_",c("keep","other"))
-genera <- genera$keep
+genera1 <- unique(interEdge$g1)
+genera2 <- unique(interEdge$g2)
+genera3 <- c(genera1,genera2)
+genera3 <- unique(genera3)
+genera3 <- colsplit(genera3,"_",c("keep","other"))
+genera3 <- genera3$keep
 
-pidaGenera <- c(unique(pidaPar$Genus.org1,unique(pidaPar$Genus.org2)))
-pidaGenera <- unique(pidaGenera)
+pidaGenera <- unique(pidaPar$Genus.org1)
+pidaGenera2 <- unique(pidaPar$Genus.org2)
+pidaGenera3 <- c(pidaGenera,pidaGenera2)
+pidaGenera3 <- unique(pidaGenera3)
+
 keeperz <- NULL
-for (i in 1:length(genera)){
-  g <- genera[i]
-  if (g %in% pidaGenera){
+for (i in 1:length(genera3)){
+  g <- genera3[i]
+  if (g %in% pidaGenera3){
     print(g)
     keeperz <- c(keeperz,g)
   }
@@ -67,6 +72,7 @@ Karlo<- subset(synG2,grepl("Karlodinium",synG2$Tax1)|grepl("Karlodinium",synG2$T
 Lepid<- subset(synG2,grepl("Lepidodinium",synG2$Tax1)|grepl("Lepidodinium",synG2$Tax2))
 Alex<- subset(synG2,grepl("Alexandrium",synG2$Tax1)|grepl("Alexandrium",synG2$Tax2))
 Proto<- subset(synG2,grepl("Protoperidinium",synG2$Tax1)|grepl("Protoperidinium",synG2$Tax2))
+Dinop<- subset(synG2,grepl("Dinophysis",synG2$Tax1)|grepl("Dinophysis",synG2$Tax2))
 
 # Cercozoa no matches to either diatom genus
 Cerc<- subset(interEdge,grepl("Cryothe",interEdge$Tax1)|grepl("Cryotheco",interEdge$Tax2))
@@ -127,6 +133,7 @@ outG2$fin2b <- outG2$fin2
 outG2$fin1 <- ifelse(outG2$swap=="yes",outG2$fin2b,outG2$fin1)
 outG2$fin2 <- ifelse(outG2$swap=="yes",outG2$fin1b,outG2$fin2)
 outG2 <- outG2[c(1:6)]
+outG2 <- outG2[c(1:5,7:12,6),]
 
 finalG <- graph_from_data_frame(outG2,directed=FALSE)
 E(finalG)$weight <- outG2$edge
