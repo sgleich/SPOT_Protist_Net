@@ -1,47 +1,13 @@
 ### SPOT Network Analysis ###
-### PIDA Comparison ###
+### PIDA Comparison - MUTUALISM###
 ### By: Samantha Gleich ###
-### Last Updated: 3/1/23 ###
+### Last Updated: 4/5/23 ###
 
 # Colors to use for all taxonomic analyses
 taxCols <- c("#E1746D","#76C3D7","#DE5AB1","#D5E0AF","#DED3DC","#87EB58","#D4DC60","#88E5D3","#88AAE1","#DBA85C","#8B7DDA","#9A8D87","#D99CD1","#B649E3","#7EDD90")
 names(taxCols) <- c("Chlorophyte","Ciliate","Cryptophyte","Diatom","Dinoflagellate","Fungi","Haptophyte","MAST","Other Alveolate","Other Archaeplastida","Other Eukaryote","Other Stramenopile","Rhizaria","Syndiniales","Unknown Eukaryote")
 
-s5 <- read.csv(file.choose(),header=TRUE,row.names=1)
-sDCM <- read.csv(file.choose(),header=TRUE,row.names=1)
-colnames(s5) <- str_remove_all(colnames(s5),"^X")
-colnames(sDCM) <- str_remove_all(colnames(sDCM),"^X")
-
-s5 <- as.matrix(s5)
-sDCM <- as.matrix(sDCM)
-
-s5[s5<0] <- -1
-s5[s5>0] <- 1
-sDCM[sDCM<0] <- -1
-sDCM[sDCM>0] <- 1
-
-
-g5m <- graph_from_adjacency_matrix(s5,mode="undirected",weighted=TRUE)
-gdcm <- graph_from_adjacency_matrix(sDCM,mode="undirected",weighted=TRUE)
-
-int <- graph.intersection(g5m,gdcm)
-
-interEdge <- as.data.frame(get.edgelist(int))
-g5mEdge <- as.data.frame(get.edgelist(g5m))
-g5mEdge$weight5 <- E(g5m)$weight
-gdcmEdge <- as.data.frame(get.edgelist(gdcm))
-gdcmEdge$weightDCM <- E(gdcm)$weight
-
-interEdge$fin1 <- paste(interEdge$V1,interEdge$V2,sep="_")
-g5mEdge$fin1 <- paste(g5mEdge$V1,g5mEdge$V2,sep="_")
-g5mEdge$fin2 <- paste(g5mEdge$V2,g5mEdge$V1,sep="_")
-gdcmEdge$fin1 <- paste(gdcmEdge$V1,gdcmEdge$V2,sep="_")
-gdcmEdge$fin2 <- paste(gdcmEdge$V2,gdcmEdge$V1,sep="_")
-
-interEdge <- left_join(interEdge,g5mEdge)
-interEdge <- left_join(interEdge,gdcmEdge)
-
-interEdge <- subset(interEdge,weight5==weightDCM)
+interEdge <- read.csv(file.choose(),header=TRUE)
 
 tax <- read.delim("taxonomy_90.tsv",header=TRUE,row.names=NULL)
 tax$Confidence <- NULL
@@ -65,7 +31,7 @@ subs <- subset(pidaSymb,Genus.org1 %in% interEdge$g1 | Genus.org2 %in% interEdge
 
 acanth <- c("Acanthometron","Lithoptera","Arthracanthida","Phyllostaurus","Lonchostaurus","Amphilonche","Xiphacantha","Lonchostaurus","Stauracantha","Amphibelone","Acanthostaurus") # Clade F
 other <- c("Askenasia","Leptocylindrus","Chaetoceros","Dictyocha")
-
+#######
 subsAcanth <- subset(subs,grepl("Acanthar",Taxonomic.level.3..org1)| grepl("Acanthar",Taxonomic.level.3..org2))
 subsAcanth <- unique(subsAcanth$Genus.org2)
 acanthEdges <- subset(interEdge,grepl("Acantharea",interEdge$Tax2) | grepl("Acantharea",interEdge$Tax1))
@@ -74,13 +40,23 @@ acanthEdges2 <- subset(acanthEdges,grepl("Phaeo",acanthEdges$Tax2) | grepl("Phae
 subsOther <- subset(subs,Genus.org1 %in% other| Genus.org2 %in% other)
 otherEdges <- subset(interEdge,grepl("Lepto",interEdge$Tax1) & grepl("MAST-4",interEdge$Tax2))
 outSymb<- rbind(otherEdges,acanthEdges1,acanthEdges2)
+######
+acan <- subset(interEdge,grepl("Acantharea_F",interEdge$Tax1)|grepl("Acantharea_F",interEdge$Tax2))
+poly <- subset(interEdge,grepl("Polycystine",interEdge$Tax1)|grepl("Polycystine",interEdge$Tax2))
+acanDino <- subset(acan, grepl("Dinophyceae",acan$Tax1)|grepl("Dinophyceae",acan$Tax2))
+polyDino <- subset(poly,grepl("Dinophyceae",poly$Tax1)|grepl("Dinophyceae",poly$Tax2))
+polyPrym <- subset(poly,grepl("Prymnesiophy",poly$Tax1)|grepl("Prymnesiophy",poly$Tax2))
+
+outSymb <- rbind(acanDino,polyDino,polyPrym)
+outSymb$X <- NULL
+outSymb <- outSymb[c(1:3)]
 
 outSymb$Tax1 <- NULL
 outSymb$Tax2 <- NULL
 
 # Plot 
 outG <-graph_from_data_frame(outSymb,directed=FALSE)
-E(outG)$weight <- outSymb$weight5
+E(outG)$weight <- outSymb$weight
 outDf <- data.frame(name=c(V(outG)$name))
 colnames(outDf) <- "V2"
 outDf <- left_join(outDf,tax)
@@ -119,15 +95,20 @@ taxz$fin <- ifelse(is.na(taxz$fin),"Other Eukaryote",taxz$fin)
 
 V(outG)$fin <- taxz$fin
 taxz$Low <- paste(taxz$Genus, taxz$Species,sep="_")
+taxz$Low <- ifelse(taxz$Low=="_",taxz$Family,taxz$Low)
+taxz$Low <- ifelse(taxz$Low=="",taxz$Order,taxz$Low)
+taxz$Low <- ifelse(taxz$Low=="",taxz$Class,taxz$Low)
 low <- colsplit(taxz$Low,"_",c("keep","keep2","toss"))
-low$keep <- ifelse(low$keep=="","Acantharea Clade F",low$keep)
+low$keep <- ifelse(low$keep=="Acantharea","Acantharea Clade F",low$keep)
+low$keep <- ifelse(low$keep=="Cannobotryidae","Cannobotryidae (Polycystine)",low$keep)
+low$keep <- ifelse(low$keep=="Lophophaenidae","Lophophaenidae (Polycystine)",low$keep)
 V(outG)$namez <- low$keep
 
-pdf("../../try.pdf",width=20,height=11)
+pdf("../../try2.pdf",width=20,height=11)
 ggraph(outG, layout = 'linear', circular = TRUE) + geom_edge_arc(color="dodgerblue",alpha=0.6,width=1) + 
   geom_node_text(aes(label = namez, angle = node_angle(x, y)), hjust = -0.1,size=3) +
   geom_node_point(shape = 21, size = 4, aes(fill = fin)) +
-  theme_graph() +
+  theme_graph() +scale_edge_color_gradientn(colours = c('indianred', 'white', 'dodgerblue'),values=c(-1,0,1))+
   coord_fixed(xlim = c(-1.4, 1.4), ylim = c(-1.4, 1.4)) +scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))
 dev.off()
 
