@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
-### Taxa barplots ###
+### Figure 2: Taxa barplots ###
 ### By: Samantha Gleich ###
-### Last Updated: 3/14/23 ###
+### Last Updated: 5/12/23 ###
 
 # Load libraries
 library(tidyverse)
@@ -10,9 +10,12 @@ library(ggplot2)
 library(randomcoloR)
 library(vegan)
 
+# Set working directory
+setwd("~/Desktop/SPOT/SPOT_2023")
+
 # Load in counts data and manifest file
-counts <- read.delim(file.choose(),header=TRUE,row.names=1)
-manifest <- read.delim(file.choose(),header=FALSE,sep=",")
+counts <- read.delim("feature-table.tsv",header=TRUE,row.names=1)
+manifest <- read.delim("manifest.txt",header=FALSE,sep=",")
 
 # We need to rename our samples in the counts dataframe so that they contain meaningful information
 namez <- colsplit(manifest$V2,"-",c("a","b","c","d","e","f","g"))
@@ -34,7 +37,7 @@ dfNew$namez <- NULL
 dfNew$new <- NULL
 
 # Add taxonomy information
-tax <- read.delim(file.choose(),header=TRUE)
+tax <- read.delim("taxonomy_90.tsv",header=TRUE)
 tax <- tax[c(1:2)]
 dfNew <- as.data.frame(t(dfNew))
 dfNew$Feature.ID <- rownames(dfNew)
@@ -89,7 +92,8 @@ dfAvg$Depth <- ifelse(dfAvg$Depth=="5m","Surface",dfAvg$Depth)
 
 dfAvg$Depth <- factor(dfAvg$Depth,levels=c("Surface","DCM"))
 
-colrs <- randomcoloR::distinctColorPalette(length(unique(dfAvg$fin)))
+# colrs <- randomcoloR::distinctColorPalette(length(unique(dfAvg$fin)))
+colrs <- c("Chlorophyte"="#DADC49", "Ciliate"="#D2DB93","Cryptophyte"="#A54CE5","Diatom"="#868BDC","Dinoflagellate" ="#7D9979","Haptophyte"="#D99351","MAST"="#DD5E77","Metazoa"= "#D7E4DA","Other Alveolate"="#DAA6A1","Other Archaeplastids"= "#83E6C3","Other Eukaryote"="#D269C9","Other Stramenopiles"= "#7DBEDA","Rhizaria"="#D7B0DD","Syndiniales"="#7EE564")
 
 dfAvg %>% ggplot(aes(x=Month,y=m))+geom_area(aes(fill = fin, group = fin),position="fill")+theme_classic()+xlab("Month")+ylab("Relative Abundance")+facet_wrap(~Depth)+theme(axis.text.x = element_text(angle=45, hjust=1))+scale_fill_manual(name="Taxonomic Group",values=c(colrs))
-ggsave("Figure2_MARCH2023.pdf")
+ggsave("Figure2_May2023.pdf")
