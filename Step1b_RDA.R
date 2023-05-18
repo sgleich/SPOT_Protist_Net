@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Figure 3: RDA ###
 ### By: Samantha Gleich ###
-### Last Updated: 5/12/23 ###
+### Last Updated: 5/17/23 ###
 
 # Load libraries
 library(tidyverse)
@@ -84,36 +84,57 @@ runRDA <- function(df,depth){
     tryAgain <- ifelse(length(t2)>=1,TRUE,FALSE)
     
     if(length(t2)>=1){
-      t <- which.max(t)}
+      t <- which.max(t)
+      envTable <- envTable[,!names(envTable) %in% c(names(t))]}}
   
-  envTable <- envTable[,!names(envTable) %in% c(names(t))]}
-  summar <- summary(rdaOut)
+  
+  rda.0 <- rda (normDf ~ 1, data = envTable) 
+  rda.all<- rda(normDf ~ ., data = envTable)
+  
+  adjR2.tbrda <- RsquareAdj(rda.all)$adj.r.squared
+  
+  forSel <- ordiR2step(rda.0, scope = formula (rda.all), R2scope = adjR2.tbrda, direction = 'forward', permutations = 999)
+  
+  forSel$anova$`Pr(>F)` <- p.adjust (forSel$anova$`Pr(>F)`, method = 'holm', n = ncol (envTable))
+  
+  import <- data.frame(forSel$anova)
+  
+  sub <- rownames(forSel$anova)
+  sub <- str_remove_all(sub,"\\+ ")
+  len <- length(sub)
+  sub <- sub[1:len-1]
+  envTable2 <- subset(envTable,select=c(sub))
+  
+  finalModforSel <- rda (normDf ~ ., data = envTable2) 
+  summar <- summary(finalModforSel)
   summar <- data.frame(summar$cont$importance)
-  summar <- subset(summar,select=c(grepl("RDA",colnames(summar))))
-  anovOut <- anova.cca(finalmodel, by="terms")
-  anovOutSub <- subset(anovOut,`Pr(>F)` < 0.01)
-  keep <- rownames(anovOutSub)
   
-  fitDf <- data.frame(rdaOut$CCA$biplot)
+  rdaDf <- data.frame(finalModforSel$CCA$u)
+  
+  fitDf <- data.frame(finalModforSel$CCA$biplot)
   fitDf <- fitDf[c(1:2)]
   fitDf$x <- mean(rdaDf$RDA1)
   fitDf$y <- mean(rdaDf$RDA2)
   
-  fitDf <- subset(fitDf,rownames(fitDf) %in% keep)
-  return(list(rdaDf,fitDf,summar))}
-  
-  outSurf <- runRDA(dfTax,"5m")
-  mainDf <- outSurf[[1]]
-  fitDf <- outSurf[[2]]
-  statDf <- outSurf[[3]]
-  
-  outDCM <- runRDA(dfTax,"DCM")
-  mainDf2 <- outDCM[[1]]
-  fitDf2 <- outDCM[[2]]
-  statDf2 <- outDCM[[3]]
-  
+  return(list(rdaDf,fitDf,import,summar))}
 
+outSurf <- runRDA(dfTax,"5m")
+mainDf <- outSurf[[1]]
+fitDf <- outSurf[[2]]
+impDf <- outSurf[[3]]
+statDf <- outSurf[[4]]
 
-outP <- ggplot(mainDf2,aes(RDA1,RDA2,fill=factor(Month),shape=as.factor(Month)))+geom_point(size=2,color="black")+scale_fill_manual(name="Month",values=c("dodgerblue","dodgerblue","darkolivegreen4","darkolivegreen4","darkolivegreen4","goldenrod1","goldenrod1","goldenrod1","firebrick2","firebrick2","firebrick2","dodgerblue"),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+scale_shape_manual(name="Month",values=c(21,22,21,22,24,21,22,24,21,22,24,24),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+theme_classic()+xlab("RDA1 (3.63%)")+ylab("RDA2 (2.06%)")+geom_vline(xintercept = 0,linetype="dotted")+geom_hline(yintercept = 0,linetype="dotted")+ggtitle("DCM")+geom_segment(aes(x = fitDf[1,3], y = fitDf[1,4], xend = fitDf[1,1] , yend = fitDf[1,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[2,3], y = fitDf[2,4], xend = fitDf[2,1] , yend = fitDf[2,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[3,3], y = fitDf[3,4], xend = fitDf[3,1] , yend = fitDf[3,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[4,3], y = fitDf[4,4], xend = fitDf[4,1] , yend = fitDf[4,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[5,3], y = fitDf[5,4], xend = fitDf[5,1] , yend = fitDf[5,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[6,3], y = fitDf[6,4], xend = fitDf[6,1] , yend = fitDf[6,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[7,3], y = fitDf[7,4], xend = fitDf[7,1] , yend = fitDf[7,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[8,3], y = fitDf[8,4], xend = fitDf[8,1] , yend = fitDf[8,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)
+outDCM <- runRDA(dfTax,"DCM")
+mainDf2 <- outDCM[[1]]
+fitDf2 <- outDCM[[2]]
+impDf2 <- outDCM[[3]]
+statDf2 <- outDCM[[4]]
+
+colz <- colsplit(rownames(mainDf2),"_",c("spot","Cruise","month","day","year","Depth"))
+mainDf2$Month <- colz$month
+statDf2 <- subset(statDf2,select=c(grepl("RDA",colnames(statDf2))))
+rowSums(statDf2)
+
+outP <- ggplot(mainDf2,aes(RDA1,RDA2,fill=factor(Month),shape=as.factor(Month)))+geom_point(size=2,color="black")+scale_fill_manual(name="Month",values=c("dodgerblue","dodgerblue","darkolivegreen4","darkolivegreen4","darkolivegreen4","goldenrod1","goldenrod1","goldenrod1","firebrick2","firebrick2","firebrick2","dodgerblue"),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+scale_shape_manual(name="Month",values=c(21,22,21,22,24,21,22,24,21,22,24,24),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+theme_classic()+xlab("RDA1 (3.35%)")+ylab("RDA2 (1.70%)")+geom_vline(xintercept = 0,linetype="dotted")+geom_hline(yintercept = 0,linetype="dotted")+ggtitle("DCM")+geom_segment(aes(x = fitDf[1,3], y = fitDf[1,4], xend = fitDf[1,1] , yend = fitDf[1,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[2,3], y = fitDf[2,4], xend = fitDf[2,1] , yend = fitDf[2,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[3,3], y = fitDf[3,4], xend = fitDf[3,1] , yend = fitDf[3,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[4,3], y = fitDf[4,4], xend = fitDf[4,1] , yend = fitDf[4,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[5,3], y = fitDf[5,4], xend = fitDf[5,1] , yend = fitDf[5,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[6,3], y = fitDf[6,4], xend = fitDf[6,1] , yend = fitDf[6,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[7,3], y = fitDf[7,4], xend = fitDf[7,1] , yend = fitDf[7,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[8,3], y = fitDf[8,4], xend = fitDf[8,1] , yend = fitDf[8,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)
 outP
-# ggsave("DCMRDA_May2023.pdf",width=6,height=4)
+# ggsave("../../DCMRDA_May2023.pdf",width=6,height=4)
