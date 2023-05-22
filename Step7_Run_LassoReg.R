@@ -1,6 +1,6 @@
 ### SPOT LASSO ANALYSIS ###
 ### Script by: Samantha Gleich ###
-### Last modified: April 4, 2023 ###
+### Last modified: May 22, 2023 ###
 
 # Load libraries
 library(glmnet)
@@ -12,6 +12,9 @@ library(yardstick)
 library(compositions)
 library(Metrics)
 library(vegan)
+
+# Set SPOT working directory
+setwd("~/Desktop/SPOT/SPOT_2023")
 
 # Set seed for reproducibility
 set.seed(100)
@@ -44,15 +47,16 @@ dfNew<- subset(dfNew,rownames(dfNew)!="SPOT_115_2_16_12_5m"& rownames(dfNew)!="S
 dfCLR <- as.data.frame(clr(dfNew))
 
 # Let's only keep those ASVs that we included in our networks
-netOut <- read.csv(file.choose(),header=TRUE,row.names=1) 
-namez <- c(netOut$V1,netOut$V2)
+netOut5 <- read.csv("NetGAM_Out5_May16.csv",header=TRUE,row.names=1) 
+netOutDCM <- read.csv("NetGAM_OutDCM_May16.csv",header=TRUE,row.names=1)
+namez <- c(colnames(netOut5),colnames(netOutDCM))
 namez <- unique(namez)
 namez <- str_remove(namez,"S_")
 dfCLR <- subset(dfCLR,select=c(namez))
 namez <- colnames(dfCLR)
 
 # Load environmental data 
-env <- read.csv("../SPOT_Env_NewJan11.csv",header=TRUE)
+env <- read.csv("SPOT_Env_NewJan11.csv",header=TRUE)
 
 # Match up environmental data to order of ASV table samples (not necessarily ordered by time)
 colz <- colsplit(rownames(dfCLR),"_",c("spot","Cruise","Month","Day","Year","Depth"))
@@ -65,12 +69,10 @@ dfCLR$Cruise <- NULL
 
 # Now we can select just the environmental variables we care about/ variable that do not display multicollinearity
 set.seed(100)
-envNew <- all[c(1030,1032:1052)]
+keepEnv <- c("DayOfYear","O2Wink","NH4","SiO3","PO4","NO2.NO3","CTDTMP",    "CTDBEAM","CTDFLUOR","CTDOXY","CTDSAL","DayLength","DayDiff","SLA","cyanos","sar11","cyanos_PA","sar11_PA","MEI","SST","Chla","PP")
+envNew <- subset(all,select=c(keepEnv))
 envNew <- missForest(envNew)
 envNew <- envNew$ximp
-envNew$DayDiff <- NULL
-envNew$cyanos_PA <- NULL
-envNew$CTDFLUOR <- NULL
 
 # Rename CLR transformed dataframe
 total <- dfCLR
@@ -124,8 +126,24 @@ out$V1 <- NULL
 out$V2 <- as.numeric(out$V2)
 out$V3 <- as.numeric(out$V3)
 out$V4 <- as.numeric(out$V4)
-out <- subset(out, rowSums(out)!=0)
 colnames(out) <- c("Env","Asv","MSE")
+
+out$percEnv <- out$Env/ncol(envNew)
+out$percAsv <- out$Asv/(ncol(dfCLR)-1)
+mean(out$percEnv)
+mean(out$percAsv)
+median(out$percEnv)
+median(out$percAsv)
+
+percComp <- data.frame(num=c(rownames(out)),env=c(out$percEnv),asv=c(out$percAsv))
+percComp <- melt(percComp,id.vars=c("num"))
+
+# Boxplots
+p2 <- ggplot(percComp,aes(x=variable,y=value))+geom_boxplot()+theme_bw()+xlab("Predictor Group")+ylab("Percent of Total Predictors per Model")+scale_x_discrete(labels=c("Environmental/Biological Parameters\n(22 Total)","ASVs\n(1310 Total)"))
+p1+p2
+
+# ggsave("../../TRY.pdf",width=12,height=5)
+
 
 fin <- read.delim("taxonomy_90.tsv",header=TRUE)
 out$Feature.ID <- rownames(out)
@@ -158,47 +176,16 @@ hist2 <- ggplot(out, aes(x=Asv)) + geom_histogram(aes(y=..density..), binwidth=2
 hist1 +hist2
 # ggsave("../../NEWESTTOP.pdf",width=10,height=4)
 
-# Look at relative number of environmental vs. ASV predictors
-out$ratEnv <- out$Env/19
-out$ratAsv <- out$Asv/1024
-out$mod <- 1:nrow(out)
-
-
-newDf <- data.frame(envRat =c(out$ratEnv),asvRat=c(out$ratAsv),mod=c(out$mod))
-newDf <- newDf %>% pivot_longer(cols = c("envRat","asvRat"))
-
-rat <- ggplot(newDf,aes(x=name,y=value))+geom_boxplot()+ylim(0,0.4)+theme_classic()+ylab("# of Predictors in Final Model/\nTotal # of Input Predictors")+scale_x_discrete(labels=c("ASVs","Environmental/\nBiological Variables"))+xlab("Predictor Group")
-
-
-newDf2 <- data.frame(env =c(out$Env),asv=c(out$Asv),mod=c(out$mod))
-newDf2 <- newDf2 %>% pivot_longer(cols = c("env","asv"))
-
-reg <- ggplot(newDf2,aes(x=name,y=value))+geom_boxplot()+theme_classic()+ylab("# of Predictors in Final Model")+scale_x_discrete(labels=c("ASVs","Environmental/\nBiological Variables"))+xlab("Predictor Group")+ylim(0,200)
-
-reg+rat
-ggsave("../../NEWLassoReg.pdf")
-
 # Look at important predictors
 envCoef <- subset(coefs,rownames(coefs) %in% envNamez)
 envCoef$var <- rownames(envCoef)
 envCoefM <- melt(envCoef,id.vars="var") 
 sumz <- envCoefM %>% group_by(var) %>% tally(value!=0) %>% arrange(desc(n))
 
-ggplot(sumz,aes(x=reorder(var,-n),y=n))+geom_bar(stat="identity",color="black",fill="grey")+theme_classic()+theme(axis.text.x = element_text(angle = 90,hjust=1,vjust=0.5))+xlab("Biological/Environmental Predictor")+ylab("# ASV Models Containing Biological/Environmental Predictor")+scale_x_discrete(labels=c("Day length","Oxygen","Silica","Chlorophyll a (satellite)","Cyanobacteria","Day of year","Oxygen (Winkler)","MEI","Ammonium","Nitrate","Primary production (satellite)","SSH (satellite)","SST (satellite)","Beam attenuation","SAR11","Salinity","Temperature","Particle-associated SAR11","Phosphate"))
-ggsave("../../NEW2.pdf",width=10,height=7)
+ggplot(sumz,aes(x=reorder(var,-n),y=n))+geom_bar(stat="identity",color="black",fill="grey")+theme_classic()+theme(axis.text.x = element_text(angle = 90,hjust=1,vjust=0.5))+xlab("Biological/Environmental Predictor")+ylab("# Models Containing Biological/Environmental Predictor")+scale_x_discrete(labels=c("Day length","Chlorophyll a (satellite)","Oxygen","Silica","Cyanobacteria","Ammonium","Oxygen (Winkler)","Nitrate + Nitrite","Day of year","SSH (satellite)","Chlorophyll a","MEI","Particle-associated SAR11","SST (satellite)","Temperature","Primary production (satellite)","Beam attenuation","Salinity","Particle-associated cyanobacteria","Rate of change of day length","Phosphate","SAR11"))
+# ggsave("../../NEW2.pdf",width=10,height=7)
 
-out2 <- out %>% arrange(desc(total))
-out2 <- subset(out2,Asv!=1023)
-out2 <- subset(out2,Asv!=0)
-top10 <- out2 %>% top_frac(0.1,Asv)
-bottom10 <- out2 %>% top_frac(-0.1,Asv)
-median(top10$Env)
-median(bottom10$Env)
-wilcox.test(top10$Env,bottom10$Env)
-full <- rbind(top10,bottom10)
-
-
-hist <- out %>% filter (total < 1000 & total > 0) %>% ggplot(aes(x=total)) + geom_histogram(aes(y=..density..), binwidth=10,colour="black", fill="white") +
-  geom_density(alpha=.2, fill="#FF6666",adjust=2)+theme_classic()+xlab("Number of Predictors Per Model")+ylab("Frequency")
-hist
-ggsave("Histogram.pdf")
+dayLength <- subset(envCoefM,var=="DayLength")
+dayLength <- subset(dayLength,value!=0)
+colnames(dayLength)[2] <- "Feature.ID"
+dayLength <- left_join(dayLength,fin)
