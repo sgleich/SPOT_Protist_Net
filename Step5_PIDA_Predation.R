@@ -1,13 +1,13 @@
 ### SPOT Network Analysis ###
 ### PIDA Comparison - PREDATION ###
 ### By: Samantha Gleich ###
-### Last Updated: 4/5/23 ###
+### Last Updated: 5/27/2023 ###
 
 # Colors to use for all taxonomic analyses
 taxCols <- c("#E1746D","#76C3D7","#DE5AB1","#D5E0AF","#DED3DC","#87EB58","#D4DC60","#88E5D3","#88AAE1","#DBA85C","#8B7DDA","#9A8D87","#D99CD1","#B649E3","#7EDD90")
 names(taxCols) <- c("Chlorophyte","Ciliate","Cryptophyte","Diatom","Dinoflagellate","Fungi","Haptophyte","MAST","Other Alveolate","Other Archaeplastida","Other Eukaryote","Other Stramenopile","Rhizaria","Syndiniales","Unknown Eukaryote")
 
-interEdge <- read.csv(file.choose(),header=TRUE)
+interEdge <- read.csv("Surf_DCM_edges_MAY2023.csv",header=TRUE)
 
 tax <- read.delim("taxonomy_90.tsv",header=TRUE,row.names=NULL)
 tax$Confidence <- NULL
@@ -17,7 +17,7 @@ colnames(tax) <- c("V2","Tax2")
 interEdge <- left_join(interEdge,tax)
 # write.csv(interEdge,"../PIDA_Prelim.csv")
 
-pida <- read.csv(file.choose(),header=TRUE) 
+pida <- read.csv("PIDA_Int.csv",header=TRUE) 
 pida <- subset(pida,Taxonomic.interaction=="Prot - Prot")
 pidaPar <- subset(pida,Interaction=="par")
 pidaSymb <- subset(pida,Interaction=="symb")
@@ -103,19 +103,19 @@ taxz$fin <- ifelse(taxz$Kingdom=="Alveolata" & is.na(taxz$fin),"Other Alveolate"
 taxz$fin <- ifelse(is.na(taxz$fin),"Other Eukaryote",taxz$fin)
 
 V(finalG)$fin <- taxz$fin
-taxz$Low <- paste(taxz$Genus, taxz$Species,sep="_")
-low <- colsplit(taxz$Low,"_",c("keep","keep2","toss"))
-V(finalG)$namez <- low$keep
-
-
-
+taxz$Low <- taxz$Species
+taxz$Low <- ifelse(taxz$Species=="",taxz$Genus,taxz$Low)
+taxz$Low <- str_replace_all(taxz$Low,"_sp.;","")
+taxz$Low <- str_replace_all(taxz$Low,"_"," ")
+taxz$Low <- str_replace_all(taxz$Low,";","")
+V(finalG)$namez <- taxz$Low
 
 
 
 # PLOT
 pdf("../../PREDATION_APRIL5.pdf",width=20,height=15)
 ggraph(finalG, layout = 'linear', circular = TRUE) + geom_edge_arc(aes(color = weight),alpha=0.6,width=1) + 
-  geom_node_text(aes(label = namez, angle = node_angle(x, y)), hjust = -0.15,size=3) +
+  geom_node_text(aes(label = namez, angle = node_angle(x, y)), hjust = -0.15,size=6,fontface="italic") +
   geom_node_point(shape = 21, size = 6, aes(fill = fin)) +
   theme_graph() +
   scale_edge_color_gradientn(colours = c('indianred', 'white', 'dodgerblue'),values=c(-1,0,1)) +
