@@ -60,6 +60,17 @@ rownames(dfNew) <- dfNew$row
 dfNew$row <- NULL
 dfNew <- as.data.frame(t(dfNew))
 
+tax <- read.delim("taxonomy_90.tsv",header=TRUE)
+tax <- data.frame(name=c(tax$Feature.ID),tax=c(tax$Taxon))
+dfNew$name <- rownames(dfNew)
+v <- c("date","date")
+tax <- rbind(tax,v)
+dfNew <- left_join(dfNew,tax)
+dfNew <- subset(dfNew,grepl("Eukaryota",dfNew$tax) |grepl("date",dfNew$tax) )
+rownames(dfNew) <- dfNew$name
+dfNew$name <- NULL
+dfNew$tax <- NULL
+
 # Subset 5m and DCM samples
 asvSurf <- subset(dfNew,select=c(grepl("5m",colnames(dfNew))))
 asvDCM <- subset(dfNew,select=c(grepl("DCM",colnames(dfNew))))
