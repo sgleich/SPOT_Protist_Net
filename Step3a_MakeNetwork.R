@@ -147,13 +147,14 @@ netGAM5 <- as.matrix(netGAM5)
 netGAMDCM <- as.matrix(netGAMDCM)
 
 # Run graphical lasso network
+set.seed(100)
 lams  <- pulsar::getLamPath(pulsar::getMaxCov(netGAMDCM), .01, len=30)
 hugeargs <- list(lambda=lams, verbose=FALSE)
-out5 <- pulsar::batch.pulsar(netGAMDCM, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
-opt <- out5$stars
+outd <- pulsar::batch.pulsar(netGAMDCM, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
+opt <- outd$stars
 n <- opt$opt.index
 # Get output adjacency matrix from graphical lasso model
-fit <- pulsar::refit(out5)
+fit <- pulsar::refit(outd)
 fit <- fit$refit
 fit.fin <- fit$stars
 fit.fin <- as.matrix(fit.fin)
@@ -165,7 +166,7 @@ fit.fin <- as.matrix(fit.fin)
 dim(fit.fin)
 
 
-write.csv(fit.fin,"sDCM_SPOT_APRIL2023_80p.csv")
+write.csv(fit.fin,"../../DCM_SPOT_Aug2023.csv")
 # lambda = 0.13 (5m)
 # lambda = 0.15 (DCM)
 
