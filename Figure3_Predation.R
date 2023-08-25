@@ -1,5 +1,5 @@
 ### SPOT Network Analysis ###
-### Figure 5: PIDA Comparison - PREDATION ###
+### Figure 3: PIDA Comparison - PREDATION ###
 ### By: Samantha Gleich ###
 ### Last Updated: 8/24/23 ###
 
