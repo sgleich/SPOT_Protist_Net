@@ -1,5 +1,5 @@
 ### SPOT Network Analysis ###
-### Figure 5: PIDA Comparison - PARASITISM ###
+### Figure 4: PIDA Comparison - PARASITISM ###
 ### By: Samantha Gleich ###
 ### Last Updated: 8/24/23 ###
 
