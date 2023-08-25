@@ -85,16 +85,24 @@ cercOut <- subset(cercOut, grepl("Cryothecomonas", cercOut$f1)|grepl("Cryothecom
 
 # Combine and reorder edge table
 full <- rbind(synG1Out,synG2Out,cercOut)
-full <- full[c(1:2,8,16)]
-full$tmp <- full$X1
-full$X1 <- ifelse(full$c1=="Syndiniales",full$X2,full$X1)
-full$X2 <- ifelse(full$c1=="Syndiniales",full$tmp,full$X2)
-full$X1 <- ifelse(full$c1=="Filosa-Thecofilosea",full$X2,full$X1)
-full$X2 <- ifelse(full$c1=="Filosa-Thecofilosea",full$tmp,full$X2)
-full <- full[1:2]
+full <- full[c(1:2)]
+full <- full %>% distinct(X1,X2) %>% as.data.frame()
 
 # Prepare for plotting
 outG <-graph_from_data_frame(full,directed=FALSE)
+outDf <- data.frame(name=c(V(outG)$name))
+colnames(outDf) <- "X2"
+outDf <- left_join(outDf,tax)
+outDf <- outDf %>% arrange(Tax2) %>% as.data.frame()
+
+# Reorder the vertices
+mat <- get.adjacency(outG)
+mat <- as.matrix(mat)
+
+mat <- mat[order(match(rownames(mat), outDf$X2)), , drop = FALSE]
+mat <- mat[, c(outDf$X2)]
+outG <- graph_from_adjacency_matrix(mat,mode="undirected")
+
 outDf <- data.frame(name=c(V(outG)$name))
 colnames(outDf) <- "X2"
 outDf <- left_join(outDf,tax)
@@ -147,7 +155,7 @@ pdf("tryNEW3.pdf",width=12,height=12)
 ggraph(outG, layout = 'linear', circular = TRUE) + geom_edge_arc(aes(color = as.factor(weight)),alpha=0.8,width=0.7) +
   geom_node_point(shape = 21, size = 2, aes(fill = fin)) +
   theme_graph() +scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))+scale_edge_color_manual(values=c("grey60","indianred"),breaks=c(1,-1))+geom_node_text(aes(label = namez, angle = node_angle(x, y)), hjust = -0.15,size=2,fontface="italic")+
-coord_fixed(xlim = c(-1.4, 1.4), ylim = c(-1.4, 1.4)) 
+  coord_fixed(xlim = c(-1.4, 1.4), ylim = c(-1.4, 1.4)) 
 dev.off()
 
 # Legend
