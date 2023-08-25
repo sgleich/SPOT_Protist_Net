@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
-### Figure 2: Taxa barplots ###
+### Figure S3: Taxa barplots ###
 ### By: Samantha Gleich ###
-### Last Updated: 5/12/23 ###
+### Last Updated: 8/25/23 ###
 
 # Load libraries
 library(tidyverse)
@@ -51,8 +51,9 @@ dfTax <- left_join(dfNew,tax)
 # Now let's choose specific taxonomic groups to visualize in our plots
 dfTax <- subset(dfTax,grepl("Eukaryot",dfTax$Taxon))
 taxz <- colsplit(dfTax$Taxon,";",c("Supergroup","Kingdom","Phylum","Class","Order","Family","Genus","Species"))
-taxz$fin <- ifelse(taxz$Class=="Syndiniales","Syndiniales",NA)
-taxz$fin <- ifelse(taxz$Class=="Dinophyceae","Dinoflagellate",taxz$fin)
+taxz$fin <- ifelse(taxz$Class=="Dinophyceae","Dinoflagellate",NA)
+taxz$fin <- ifelse(taxz$Order=="Dino-Group-II","Group II Syndiniales",taxz$fin)
+taxz$fin <- ifelse(taxz$Order=="Dino-Group-I","Group I Syndiniales",taxz$fin)
 taxz$fin <- ifelse(taxz$Class=="Bacillariophyta","Diatom",taxz$fin)
 taxz$fin <- ifelse(grepl("MAST",taxz$Class),"MAST",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Rhizaria","Rhizaria",taxz$fin)
@@ -63,7 +64,7 @@ taxz$fin <- ifelse(taxz$Phylum=="Ciliophora","Ciliate",taxz$fin)
 taxz$fin <- ifelse(taxz$Phylum=="Metazoa","Metazoa",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Stramenopiles" & is.na(taxz$fin),"Other Stramenopiles",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Archaeplastida" & is.na(taxz$fin),"Other Archaeplastids",taxz$fin)
-taxz$fin <- ifelse(taxz$Kingdom=="Alveolata" & is.na(taxz$fin),"Other Alveolate",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Alveolata" & is.na(taxz$fin),"Other Alveolates",taxz$fin)
 taxz$fin <- ifelse(is.na(taxz$fin),"Other Eukaryote",taxz$fin)
 # unique(taxz$fin)
 
@@ -93,7 +94,8 @@ dfAvg$Depth <- ifelse(dfAvg$Depth=="5m","Surface",dfAvg$Depth)
 dfAvg$Depth <- factor(dfAvg$Depth,levels=c("Surface","DCM"))
 
 # colrs <- randomcoloR::distinctColorPalette(length(unique(dfAvg$fin)))
-colrs <- c("Chlorophyte"="#DADC49", "Ciliate"="#D2DB93","Cryptophyte"="#A54CE5","Diatom"="#868BDC","Dinoflagellate" ="#7D9979","Haptophyte"="#D99351","MAST"="#DD5E77","Metazoa"= "#D7E4DA","Other Alveolate"="#DAA6A1","Other Archaeplastids"= "#83E6C3","Other Eukaryote"="#D269C9","Other Stramenopiles"= "#7DBEDA","Rhizaria"="#D7B0DD","Syndiniales"="#7EE564")
+taxCols <- c("#E1746D","#76C3D7","#DE5AB1","#D5E0AF","#DED3DC","#87EB58","#D4DC60","#88E5D3","#88AAE1","#DBA85C","#8B7DDA","#9A8D87","#D99CD1","#B649E3","#7EDD90","#4FC4D0")
+names(taxCols) <- c("Chlorophyte","Ciliate","Cryptophyte","Diatom","Haptophyte","Dinoflagellate","MAST","Other Alveolates","Other Archaeplastids","Other Eukaryote","Other Stramenopiles","Rhizaria","Group I Syndiniales","Group II Syndiniales","Unknown Eukaryote","Metazoa")
 
-dfAvg %>% ggplot(aes(x=Month,y=m))+geom_area(aes(fill = fin, group = fin),position="fill")+theme_classic()+xlab("Month")+ylab("Relative Abundance")+facet_wrap(~Depth)+theme(axis.text.x = element_text(angle=45, hjust=1))+scale_fill_manual(name="Taxonomic Group",values=c(colrs))
-ggsave("Figure2_May2023.pdf")
+dfAvg %>% ggplot(aes(x=Month,y=m))+geom_area(aes(fill = fin, group = fin),position="fill")+theme_classic()+xlab("Month")+ylab("Relative Abundance")+facet_wrap(~Depth)+theme(axis.text.x = element_text(angle=45, hjust=1))+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))
+ggsave("../../Figure2_May2023.pdf")
