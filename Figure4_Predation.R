@@ -85,7 +85,7 @@ colnames(outDf) <- "X2"
 outDf <- left_join(outDf,tax)
 outDf <- outDf %>% arrange(Tax2) %>% as.data.frame()
 
-# Reorder the verticies
+# Reorder the vertices
 mat <- get.adjacency(outG)
 mat <- as.matrix(mat)
 
