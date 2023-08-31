@@ -1,7 +1,7 @@
-### SPOT Network Analysis ###
+## SPOT Network Analysis ###
 ### Figure 2: RDA ###
 ### By: Samantha Gleich ###
-### Last Updated: 8/25/23 ###
+### Last Updated: 8/31/23 ###
 
 # Load libraries
 library(tidyverse)
@@ -13,7 +13,7 @@ library(compositions)
 library(missForest)
 
 # Set SPOT working directory
-setwd("~/Desktop/SPOT/export_dir")
+setwd("~/Desktop/SPOT/SPOT_2023")
 
 # Load in counts data and manifest file
 counts <- read.delim("feature-table.tsv",header=TRUE,row.names=1)
@@ -55,10 +55,7 @@ runRDA <- function(df,depth){
   df <- subset(df,rownames(df)!="SPOT_115_2_16_12_5m"& rownames(df)!="SPOT_115_2_16_12_DCM")
   
   normDf <- as.data.frame(clr(df))
-  env <- read.csv("env_impute_jun2.csv",header=TRUE,row.names = 1)
-  env2 <- read.csv("SPOT_Env_NewJan11.csv",header=TRUE)
-  env$Cruise <- env2$Cruise
-  env$Depth <- env2$Depth
+  env <- read.csv("SPOT_Env_NewJan11.csv",header=TRUE)
   colz <- colsplit(rownames(normDf),"_",c("spot","Cruise","month","day","year","Depth"))
   colz <- left_join(colz,env)
   
@@ -66,7 +63,7 @@ runRDA <- function(df,depth){
     keepEnv <- c("DayOfYear","O2Wink","NH4","SiO3","PO4","NO2.NO3","CTDTMP","CTDBEAM","CTDFLUOR","CTDOXY","CTDSAL","DayLength","DayDiff","SLA","cyanos","sar11","cyanos_PA","sar11_PA","MEI","SST","Chla","PP")}
   
   if (depth=="DCM"){
-    keepEnv <- c("DayOfYear","O2Wink","NH4","SiO3","PO4","NO2.NO3","CTDTMP","CTDBEAM","CTDFLUOR","CTDOXY","CTDSAL","DayLength","DayDiff","SLA","cyanos","sar11","cyanos_PA","sar11_PA","MEI","SST","Chla","PP")}
+    keepEnv <- c("DayOfYear","O2Wink","NH4","SiO3","PO4","NO2.NO3","CTDTMP","CTDBEAM","CTDFLUOR","CTDOXY","CTDSAL","DayLength","DayDiff","SLA","cyanos","sar11","cyanos_PA","sar11_PA","MEI","SST","Chla","PP","CSDepth")}
   
   envTable <- subset(colz,select=c(keepEnv))
   set.seed(100)
@@ -138,8 +135,7 @@ mainDf$Month <- colz$month
 statDf <- subset(statDf,select=c(grepl("RDA",colnames(statDf))))
 rowSums(statDf)
 
-outP <- ggplot(mainDf,aes(RDA1,RDA2,fill=factor(Month),shape=as.factor(Month)))+geom_point(size=2,color="black")+scale_fill_manual(name="Month",values=c("dodgerblue","dodgerblue","darkolivegreen4","darkolivegreen4","darkolivegreen4","goldenrod1","goldenrod1","goldenrod1","firebrick2","firebrick2","firebrick2","dodgerblue"),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+scale_shape_manual(name="Month",values=c(21,22,21,22,24,21,22,24,21,22,24,24),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+theme_classic()+xlab("RDA1 (3.30%)")+ylab("RDA2 (1.59%)")+geom_vline(xintercept = 0,linetype="dotted")+geom_hline(yintercept = 0,linetype="dotted")+ggtitle("DCM")+geom_segment(aes(x = fitDf[1,3], y = fitDf[1,4], xend = fitDf[1,1] , yend = fitDf[1,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[2,3], y = fitDf[2,4], xend = fitDf[2,1] , yend = fitDf[2,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[3,3], y = fitDf[3,4], xend = fitDf[3,1] , yend = fitDf[3,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[4,3], y = fitDf[4,4], xend = fitDf[4,1] , yend = fitDf[4,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[5,3], y = fitDf[5,4], xend = fitDf[5,1] , yend = fitDf[5,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)#+geom_segment(aes(x = fitDf[6,3], y = fitDf[6,4], xend = fitDf[6,1] , yend = fitDf[6,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[7,3], y = fitDf[7,4], xend = fitDf[7,1] , yend = fitDf[7,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[8,3], y = fitDf[8,4], xend = fitDf[8,1] , yend = fitDf[8,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[9,3], y = fitDf[9,4], xend = fitDf[9,1] , yend = fitDf[9,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)
+outP <- ggplot(mainDf,aes(RDA1,RDA2,fill=factor(Month),shape=as.factor(Month)))+geom_point(size=2,color="black")+scale_fill_manual(name="Month",values=c("dodgerblue","dodgerblue","darkolivegreen4","darkolivegreen4","darkolivegreen4","goldenrod1","goldenrod1","goldenrod1","firebrick2","firebrick2","firebrick2","dodgerblue"),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+scale_shape_manual(name="Month",values=c(21,22,21,22,24,21,22,24,21,22,24,24),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))+theme_classic()+xlab("RDA1 (3.28%)")+ylab("RDA2 (1.76%)")+geom_vline(xintercept = 0,linetype="dotted")+geom_hline(yintercept = 0,linetype="dotted")+ggtitle("DCM")+geom_segment(aes(x = fitDf[1,3], y = fitDf[1,4], xend = fitDf[1,1] , yend = fitDf[1,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[2,3], y = fitDf[2,4], xend = fitDf[2,1] , yend = fitDf[2,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[3,3], y = fitDf[3,4], xend = fitDf[3,1] , yend = fitDf[3,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[4,3], y = fitDf[4,4], xend = fitDf[4,1] , yend = fitDf[4,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[5,3], y = fitDf[5,4], xend = fitDf[5,1] , yend = fitDf[5,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)#+geom_segment(aes(x = fitDf[6,3], y = fitDf[6,4], xend = fitDf[6,1] , yend = fitDf[6,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[7,3], y = fitDf[7,4], xend = fitDf[7,1] , yend = fitDf[7,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)#+geom_segment(aes(x = fitDf[8,3], y = fitDf[8,4], xend = fitDf[8,1] , yend = fitDf[8,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)+geom_segment(aes(x = fitDf[9,3], y = fitDf[9,4], xend = fitDf[9,1] , yend = fitDf[9,2]),arrow = arrow(length=unit(3, "mm")),linewidth=0.5)
 outP
 ggsave("../../DCMRDA_Aug2023.pdf",width=6,height=4)
-
 
