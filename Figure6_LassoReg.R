@@ -1,7 +1,7 @@
 ### SPOT LASSO ANALYSIS ###
 ### Script by: Samantha Gleich ###
 ### Figure 6: Lasso Reg ###
-### Last modified: 8/25/23 ###
+### Last modified: 8/31/23 ###
 
 # Load libraries
 library(glmnet)
@@ -61,10 +61,7 @@ dfCLR <- subset(dfCLR,select=c(namez))
 namez <- colnames(dfCLR)
 
 # Load environmental data 
-env <- read.csv("env_impute_jun2.csv",header=TRUE)
-env2 <- read.csv("SPOT_Env_NewJan11.csv",header=TRUE)
-env$Cruise <- env2$Cruise
-env$Depth <- env2$Depth
+env <- read.csv("SPOT_Env_NewJan11.csv",header=TRUE)
 
 # Match up environmental data to order of ASV table samples (not necessarily ordered by time)
 colz <- colsplit(rownames(dfCLR),"_",c("spot","Cruise","Month","Day","Year","Depth"))
@@ -83,8 +80,10 @@ colnames(envNew) <- c("Day of year","Oxygen (Winkler)","Ammonium","Silica","Phos
 
 # Rename CLR transformed dataframe
 total <- dfCLR
-total <- cbind(total,envNew)
-envNamez <- colnames(envNew)
+envNew2 <- missForest(envNew)
+envNew2 <- envNew2$ximp
+total <- cbind(total,envNew2)
+envNamez <- colnames(envNew2)
 `%ni%` <- Negate(`%in%`)
 
 # Set up training and test dataset for ASV-ASV predictions
@@ -120,13 +119,13 @@ for (i in 1:ncol(dfCLR)){
   if(length(unique(y_test))>1){
     finalMod <- glmnet(X_test,y_test,type.measure = "mse",lambda=cvOut$lambda.min,standardize=FALSE)
     rSq <- finalMod$dev.ratio
-  # outPredTest <- predict(cvOut$glmnet.fit,newx=X_test)
-  # cvOut$glmnet.fit$dev.ratio
-  
-  # outPredTrain <- predict(cvOut$glmnet.fit,newx=X_train)
-  
-  # mseOutTrain <- Metrics::rmse(y_train,outPredTrain)
-  # mseOutTest <- Metrics::rmse(y_test,outPredTest)
+    # outPredTest <- predict(cvOut$glmnet.fit,newx=X_test)
+    # cvOut$glmnet.fit$dev.ratio
+    
+    # outPredTrain <- predict(cvOut$glmnet.fit,newx=X_train)
+    
+    # mseOutTrain <- Metrics::rmse(y_train,outPredTrain)
+    # mseOutTest <- Metrics::rmse(y_test,outPredTest)
     vec <- c(colnames(total)[i],envNum,asvNum,rSq)
     out <- rbind(out,vec)
     print(i)}}
@@ -155,6 +154,8 @@ median(out$percAsv)
 
 percComp <- data.frame(num=c(rownames(out)),env=c(out$percEnv),asv=c(out$percAsv))
 percComp <- melt(percComp,id.vars=c("num"))
+
+wilcox.test(out$percEnv,out$percAsv,alternative="two.sided")
 
 # Boxplots
 fun_mean <- function(x){
@@ -206,4 +207,4 @@ env <- ggplot(sumz,aes(x=reorder(var,-n),y=n,fill=fin))+geom_bar(stat="identity"
 # ggsave("../../NEW2.pdf",width=10,height=7)
 
 (p+hist)/env+plot_annotation(tag_levels="a")
-ggsave("../../Figure6_Aug2023.pdf",width=16,height=12)
+ggsave("../../Figure6_Aug2023b.pdf",width=13,height=10)
