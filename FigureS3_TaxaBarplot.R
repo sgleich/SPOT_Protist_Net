@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Figure S3: Taxa barplots ###
 ### By: Samantha Gleich ###
-### Last Updated: 8/25/23 ###
+### Last Updated: 9/19/23 ###
 
 # Load libraries
 library(tidyverse)
@@ -51,21 +51,21 @@ dfTax <- left_join(dfNew,tax)
 # Now let's choose specific taxonomic groups to visualize in our plots
 dfTax <- subset(dfTax,grepl("Eukaryot",dfTax$Taxon))
 taxz <- colsplit(dfTax$Taxon,";",c("Supergroup","Kingdom","Phylum","Class","Order","Family","Genus","Species"))
-taxz$fin <- ifelse(taxz$Class=="Dinophyceae","Dinoflagellate",NA)
+taxz$fin <- ifelse(taxz$Class=="Dinophyceae","Dinoflagellates",NA)
 taxz$fin <- ifelse(taxz$Order=="Dino-Group-II","Group II Syndiniales",taxz$fin)
 taxz$fin <- ifelse(taxz$Order=="Dino-Group-I","Group I Syndiniales",taxz$fin)
-taxz$fin <- ifelse(taxz$Class=="Bacillariophyta","Diatom",taxz$fin)
-taxz$fin <- ifelse(grepl("MAST",taxz$Class),"MAST",taxz$fin)
+taxz$fin <- ifelse(taxz$Class=="Bacillariophyta","Diatoms",taxz$fin)
+taxz$fin <- ifelse(grepl("MAST",taxz$Class),"MAST groups",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Rhizaria","Rhizaria",taxz$fin)
-taxz$fin <- ifelse(taxz$Phylum=="Chlorophyta","Chlorophyte",taxz$fin)
-taxz$fin <- ifelse(taxz$Phylum=="Cryptophyta","Cryptophyte",taxz$fin)
-taxz$fin <- ifelse(taxz$Phylum=="Haptophyta","Haptophyte",taxz$fin)
-taxz$fin <- ifelse(taxz$Phylum=="Ciliophora","Ciliate",taxz$fin)
-taxz$fin <- ifelse(taxz$Phylum=="Metazoa","Metazoa",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Chlorophyta","Chlorophytes",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Cryptophyta","Cryptophytes",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Haptophyta","Haptophytes",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Ciliophora","Ciliates",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Metazoa","Metazoans",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Stramenopiles" & is.na(taxz$fin),"Other Stramenopiles",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Archaeplastida" & is.na(taxz$fin),"Other Archaeplastids",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Alveolata" & is.na(taxz$fin),"Other Alveolates",taxz$fin)
-taxz$fin <- ifelse(is.na(taxz$fin),"Other Eukaryote",taxz$fin)
+taxz$fin <- ifelse(is.na(taxz$fin),"Other Eukaryotes",taxz$fin)
 # unique(taxz$fin)
 
 # Add new taxonomy groups to main dataframe
@@ -77,25 +77,39 @@ dfMelt <- melt(dfTax,id.vars=c("fin","Feature.ID"))
 
 # Split variable column up so that we can get month and year info
 colz <- colsplit(dfMelt$variable,"_",c("SPOT","Num","Month","Day","Year","Depth"))
-dfMelt$Month <- colz$Month
-dfMelt$Year <- colz$Year
-dfMelt$Day <- colz$Day
+dfMelt$Cruise <- colz$Num
 dfMelt$Depth <- colz$Depth
 
+env <- read.csv("SPOT_Env_NewJan11.csv",header=TRUE)
+dfMelt <- left_join(dfMelt,env)
+dfMelt <- dfMelt[c(1,4,6,8:9)]
+dfMelt <- subset(dfMelt,!is.na(Month))
+
 # Summarize dataframe prior to plotting
-dfSum <- dfMelt %>% group_by(fin,Month,Year,Day,Depth) %>% summarize(s=sum(value)) %>% as.data.frame()
+dfSum <- dfMelt %>% group_by(fin,Month,Date,Depth) %>% summarize(s=sum(value)) %>% as.data.frame()
+
+surfNum <- dfSum %>% filter(Depth=="5m" & fin=="Chlorophytes") %>% group_by(Month) %>% tally() %>% mutate(Depth="5m") %>% as.data.frame()
+dcmNum <- dfSum %>% filter(Depth=="DCM" & fin=="Chlorophytes") %>% group_by(Month) %>% tally() %>% mutate(Depth="DCM") %>% as.data.frame()
+numDf <- rbind(surfNum,dcmNum)
+
 dfAvg <- dfSum %>% group_by(fin,Month,Depth) %>% summarize(m=mean(s))%>%as.data.frame()
+dfAvg <- left_join(dfAvg,numDf)
 
 # Let's label our months as opposed to having #s
 dfAvg$Month <- factor(dfAvg$Month,levels=c(1,2,3,4,5,6,7,8,9,10,11,12),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))
 
 dfAvg$Depth <- ifelse(dfAvg$Depth=="5m","Surface",dfAvg$Depth)
-
 dfAvg$Depth <- factor(dfAvg$Depth,levels=c("Surface","DCM"))
+dfAvg$Month2 <- paste(dfAvg$Month," (",dfAvg$n,")",sep="")
 
 # colrs <- randomcoloR::distinctColorPalette(length(unique(dfAvg$fin)))
 taxCols <- c("#E1746D","#76C3D7","#DE5AB1","#D5E0AF","#DED3DC","#87EB58","#D4DC60","#88E5D3","#88AAE1","#DBA85C","#8B7DDA","#9A8D87","#D99CD1","#B649E3","#7EDD90","#4FC4D0")
-names(taxCols) <- c("Chlorophyte","Ciliate","Cryptophyte","Diatom","Haptophyte","Dinoflagellate","MAST","Other Alveolates","Other Archaeplastids","Other Eukaryote","Other Stramenopiles","Rhizaria","Group I Syndiniales","Group II Syndiniales","Unknown Eukaryote","Metazoa")
+names(taxCols) <- c("Chlorophytes","Ciliates","Cryptophytes","Diatoms","Haptophytes","Dinoflagellates","MAST groups","Other Alveolates","Other Archaeplastids","Other Eukaryotes","Other Stramenopiles","Rhizaria","Group I Syndiniales","Group II Syndiniales","Unknown Eukaryotes","Metazoans")
 
-dfAvg %>% ggplot(aes(x=Month,y=m))+geom_area(aes(fill = fin, group = fin),position="fill")+theme_classic()+xlab("Month")+ylab("Relative Abundance")+facet_wrap(~Depth)+theme(axis.text.x = element_text(angle=45, hjust=1))+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))
-ggsave("../../Figure2_May2023.pdf")
+
+dfAvg$Month2 <- factor(dfAvg$Month2,levels=c("January (11)","February (10)", "March (10)","April (10)","May (11)","June (10)","July (11)","July (9)","August (9)","September (10)","October (10)","November (10)","December (10)" ))
+
+s <- dfAvg %>% filter(Depth=="Surface") %>% ggplot(aes(x=Month2,y=m))+geom_area(aes(fill = fin, group = fin),position="fill")+theme_classic()+xlab("Month")+ylab("Relative Abundance")+facet_wrap(~Depth)+theme(axis.text.x = element_text(angle=45, hjust=1))+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))
+
+s/d+plot_annotation(tag_levels="a")+plot_layout(guides="collect")
+ggsave("../../Figure2_May2023.pdf",width=6,height=8)
