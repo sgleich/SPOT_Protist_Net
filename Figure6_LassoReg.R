@@ -1,7 +1,7 @@
 ### SPOT LASSO ANALYSIS ###
 ### Script by: Samantha Gleich ###
 ### Figure 6: Lasso Reg ###
-### Last modified: 8/31/23 ###
+### Last modified: 9/19/23 ###
 
 # Load libraries
 library(glmnet)
@@ -16,7 +16,7 @@ library(vegan)
 
 # Tax color palette
 taxCols <- c("#E1746D","#76C3D7","#DE5AB1","#D5E0AF","#DED3DC","#87EB58","#D4DC60","#88E5D3","#88AAE1","#DBA85C","#8B7DDA","#9A8D87","#D99CD1","#B649E3","#7EDD90","#4FC4D0")
-names(taxCols) <- c("Chlorophyte","Ciliate","Cryptophyte","Diatom","Haptophyte","Dinoflagellate","MAST","Other Alveolates","Other Archaeplastids","Other Eukaryote","Other Stramenopiles","Rhizaria","Group I Syndiniales","Group II Syndiniales","Unknown Eukaryote","Metazoa")
+names(taxCols) <- c("Chlorophytes","Ciliates","Cryptophytes","Diatoms","Haptophytes","Dinoflagellates","MAST groups","Other Alveolates","Other Archaeplastids","Other Eukaryotes","Other Stramenopiles","Rhizaria","Group I Syndiniales","Group II Syndiniales","Unknown Eukaryotes","Metazoans")
 
 # Set SPOT working directory
 setwd("~/Desktop/SPOT/SPOT_2023")
@@ -164,13 +164,6 @@ fun_mean <- function(x){
 p <- ggplot(percComp,aes(x=variable,y=value))+geom_boxplot(outlier.shape=21)+theme_bw(base_size=14)+xlab("Predictor Group")+ylab("Percent of Total Predictors per Model")+scale_x_discrete(labels=c("Environmental/Biological Parameters\n(22 Total)","ASVs\n(1309 Total)"))+stat_summary(fun.data = fun_mean, geom="text", hjust=1.5,vjust=-2,color="red")+ scale_y_continuous(labels = scales::percent)
 p
 
-# Histogram
-out$total <- out$Env+out$Asv
-hist <- ggplot(out, aes(x=total)) + geom_histogram(aes(y=..density..), binwidth=20,colour="black", fill="white") +
-  geom_density(alpha=.2, fill="grey30",adjust=2)+theme_classic(base_size=14)+xlab("Number of Predictors Per Model")+ylab("Frequency")
-hist
-
-
 # Look at important environmental predictors
 fin <- read.delim("taxonomy_90.tsv",header=TRUE)
 coefs <- subset(coefs,select=c(namez))
@@ -183,28 +176,28 @@ asvCoefM <- melt(asvCoef,id.vars="var")
 colnames(envCoefM)[2] <- "Feature.ID"
 envCoefM <- left_join(envCoefM,fin)
 taxz <- colsplit(envCoefM$Taxon,";",c("Supergroup","Kingdom","Phylum","Class","Order","Family","Genus","Species"))
-taxz$fin <- ifelse(taxz$Class=="Dinophyceae","Dinoflagellate",NA)
+taxz$fin <- ifelse(taxz$Class=="Dinophyceae","Dinoflagellates",NA)
 taxz$fin <- ifelse(taxz$Order=="Dino-Group-I","Group I Syndiniales",taxz$fin)
 taxz$fin <- ifelse(taxz$Order=="Dino-Group-II","Group II Syndiniales",taxz$fin)
-taxz$fin <- ifelse(taxz$Class=="Bacillariophyta","Diatom",taxz$fin)
-taxz$fin <- ifelse(grepl("MAST",taxz$Class),"MAST",taxz$fin)
+taxz$fin <- ifelse(taxz$Class=="Bacillariophyta","Diatoms",taxz$fin)
+taxz$fin <- ifelse(grepl("MAST",taxz$Class),"MAST groups",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Rhizaria","Rhizaria",taxz$fin)
-taxz$fin <- ifelse(taxz$Phylum=="Chlorophyta","Chlorophyte",taxz$fin)
-taxz$fin <- ifelse(taxz$Phylum=="Cryptophyta","Cryptophyte",taxz$fin)
-taxz$fin <- ifelse(taxz$Phylum=="Haptophyta","Haptophyte",taxz$fin)
-taxz$fin <- ifelse(taxz$Phylum=="Ciliophora","Ciliate",taxz$fin)
-taxz$fin <- ifelse(taxz$Phylum=="Metazoa","Metazoa",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Chlorophyta","Chlorophytes",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Cryptophyta","Cryptophytes",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Haptophyta","Haptophytes",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Ciliophora","Ciliates",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Metazoa","Metazoans",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Stramenopiles" & is.na(taxz$fin),"Other Stramenopiles",taxz$fin)
 taxz$fin <- ifelse(taxz$Kingdom=="Archaeplastida" & is.na(taxz$fin),"Other Archaeplastids",taxz$fin)
-taxz$fin <- ifelse(taxz$Kingdom=="Alveolata" & is.na(taxz$fin),"Other Alveolate",taxz$fin)
-taxz$fin <- ifelse(is.na(taxz$fin),"Other Eukaryote",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Alveolata" & is.na(taxz$fin),"Other Alveolates",taxz$fin)
+taxz$fin <- ifelse(is.na(taxz$fin),"Other Eukaryotes",taxz$fin)
 envCoefM$fin <- taxz$fin
-
 
 sumz <- envCoefM %>% group_by(var,fin) %>% tally(value!=0) %>% arrange(desc(n))
 
 env <- ggplot(sumz,aes(x=reorder(var,-n),y=n,fill=fin))+geom_bar(stat="identity",color="black")+theme_classic(base_size=14)+theme(axis.text.x = element_text(angle = 45,hjust=1))+xlab("Environmental/Biological Predictor")+ylab("Number of Models Containing\nEnvironmental/Biological Predictor")+scale_fill_manual(name=c("Taxonomic Group"),values=c(taxCols))
 # ggsave("../../NEW2.pdf",width=10,height=7)
 
-(p+hist)/env+plot_annotation(tag_levels="a")
-ggsave("../../Figure6_Aug2023b.pdf",width=13,height=10)
+p+env+plot_annotation(tag_levels="a")+plot_layout(nrow=2)
+ggsave("../../Figure8TRY_Sept2023.pdf",width=12,height=8)
+ggarrange(p,env,nrow=2,ncol=1)
