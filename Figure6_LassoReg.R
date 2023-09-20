@@ -1,7 +1,7 @@
 ### SPOT LASSO ANALYSIS ###
 ### Script by: Samantha Gleich ###
 ### Figure 6: Lasso Reg ###
-### Last modified: 9/19/23 ###
+### Last modified: 9/20/23 ###
 
 # Load libraries
 library(glmnet)
@@ -142,7 +142,7 @@ out$V3 <- as.numeric(out$V3)
 out$V4 <- as.numeric(out$V4)
 colnames(out) <- c("Env","Asv","Rsq")
 out2 <- out
-out <- subset(out,Rsq>0.7)
+out <- subset(out,Rsq>0)
 # out <- subset(out,Asv!=0)
 
 out$percEnv <- out$Env/ncol(envNew)
@@ -192,6 +192,7 @@ taxz$fin <- ifelse(taxz$Kingdom=="Archaeplastida" & is.na(taxz$fin),"Other Archa
 taxz$fin <- ifelse(taxz$Kingdom=="Alveolata" & is.na(taxz$fin),"Other Alveolates",taxz$fin)
 taxz$fin <- ifelse(is.na(taxz$fin),"Other Eukaryotes",taxz$fin)
 envCoefM$fin <- taxz$fin
+envCoefM <- subset(envCoefM,Feature.ID %in% rownames(out))
 
 sumz <- envCoefM %>% group_by(var,fin) %>% tally(value!=0) %>% arrange(desc(n))
 
@@ -199,5 +200,5 @@ env <- ggplot(sumz,aes(x=reorder(var,-n),y=n,fill=fin))+geom_bar(stat="identity"
 # ggsave("../../NEW2.pdf",width=10,height=7)
 
 p+env+plot_annotation(tag_levels="a")+plot_layout(nrow=2)
-ggsave("../../Figure8TRY_Sept2023.pdf",width=12,height=8)
+ggsave("../../Figure8TRY_Sept2023.pdf",width=12,height=12)
 ggarrange(p,env,nrow=2,ncol=1)
