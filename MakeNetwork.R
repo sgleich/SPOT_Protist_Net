@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Pre-processing (Filtering + GAM-transforming) and Network Analysis (Graphical lasso) ###
 ### By: Samantha Gleich ###
-### Last Updated: 8/24/23 ###
+### Last Updated: 12/4/23 ###
 
 # Load libraries
 library(devtools)
@@ -21,8 +21,8 @@ library(corrplot)
 library(stringi)
 
 # Load in the counts dataframe from qiime2 and the manifest used to run the qiime2 pipeline
-counts <- read.delim("feature-table.tsv",header=TRUE,row.names=1)
-manifest <- read.delim("manifest.txt",header=FALSE,sep=",")
+counts <- read.delim(file.choose(),header=TRUE,row.names=1)
+manifest <- read.delim(file.choose(),header=FALSE,sep=",")
 
 # We need to rename our samples in the counts dataframe so that they contain meaningful information
 namez <- colsplit(manifest$V2,"-",c("a","b","c","d","e","f","g"))
@@ -148,9 +148,9 @@ netGAMDCM <- as.matrix(netGAMDCM)
 
 # Run graphical lasso network
 set.seed(100)
-lams  <- pulsar::getLamPath(pulsar::getMaxCov(netGAMDCM), .01, len=30)
+lams  <- pulsar::getLamPath(pulsar::getMaxCov(netGAM5), .01, len=30)
 hugeargs <- list(lambda=lams, verbose=FALSE)
-outd <- pulsar::batch.pulsar(netGAMDCM, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
+outd <- pulsar::batch.pulsar(netGAM5, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
 opt <- outd$stars
 n <- opt$opt.index
 # Get output adjacency matrix from graphical lasso model
@@ -159,39 +159,13 @@ fit <- fit$refit
 fit.fin <- fit$stars
 fit.fin <- as.matrix(fit.fin)
 fit.fin <- as.data.frame(fit.fin)
-colnames(fit.fin) <- colnames(netGAMDCM)
-rownames(fit.fin)<- colnames(netGAMDCM)
+colnames(fit.fin) <- colnames(netGAM5)
+rownames(fit.fin)<- colnames(netGAM5)
 fit.fin <- as.matrix(fit.fin)
 
 dim(fit.fin)
 
 
-write.csv(fit.fin,"../../DCM_SPOT_Aug2023.csv")
+write.csv(fit.fin,"../../Surf_SPOT_Dec2023.csv")
 # lambda = 0.13 (5m)
 # lambda = 0.15 (DCM)
-
-
-# Now add SCC to these associations
-
-# We can take a preliminary look at them 
-g <- read.csv("s5_SPOT_APRIL2023_80p.csv",header=TRUE,row.names=1)
-g2 <- read.csv("sDCM_SPOT_APRIL2023_80p.csv",header=TRUE,row.names=1)
-g <- as.matrix(g)
-g2 <- as.matrix(g2)
-
-g <- graph_from_adjacency_matrix(g,mode="undirected")
-g2 <- graph_from_adjacency_matrix(g2,mode="undirected")
-length(V(g))
-length(E(g))
-length(V(g2))
-length(E(g2))
-
-int <- graph.intersection(g,g2)
-Int <- data.frame(get.edgelist(int))
-Int$X1 <- str_remove_all(Int$X1,"S_")
-Int$X2 <- str_remove_all(Int$X2,"S_")
-t <- read.delim("taxonomy_90.tsv",header=TRUE)
-t <- data.frame(X1=c(t$Feature.ID),Tax1=c(t$Taxon))
-Int <- left_join(Int,t)
-colnames(t) <- c("X2","Tax2")
-Int <- left_join(Int,t)
