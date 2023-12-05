@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
-### Figure S4: Surface and DCM NMDS plot ###
+### Figure S2: Surface and DCM NMDS plot ###
 ### By: Samantha Gleich ###
-### Last Updated: 8/9/23 ###
+### Last Updated: 12/5/23 ###
 
 # Libraries
 library(reshape2)
@@ -12,7 +12,7 @@ library(ggpubr)
 library(patchwork)
 
 # Set SPOT working directory
-setwd("/Users/samanthagleich/Desktop/SPOT/export_dir")
+setwd("/Users/samanthagleich/Desktop/SPOT/SPOT_2023")
 
 # Read in ASVs and set up date info
 counts <- read.delim("feature-table.tsv",header=TRUE,row.names=1)
@@ -29,7 +29,7 @@ fin <- data.frame(namez=c(manifest$V1),new=c(namez$fin))
 fin$new <- paste("SPOT",fin$new,sep="_")
 fin <- fin %>% distinct(new,.keep_all = TRUE)
 
-# Let's add the new (meaningful) sample names to our counts dataframe counts <- as.data.frame(t(counts))
+# Let's add the new (meaningful) sample names to our counts dataframe 
 counts$namez <- rownames(counts)
 dfNew <- left_join(counts,fin)
 rownames(dfNew) <- dfNew$new
@@ -49,13 +49,13 @@ dfNorm <- decostand(dfNew,method="total")
 dfBray <- vegdist(dfNorm,method="bray")
 
 nmdsOut <- metaMDS(dfBray,distance="bray",k=2)
-nmdsOut$stress #0.213
+nmdsOut$stress #0.213 kind of high :/
 
 nmdsDf <- data.frame(nmdsOut$points)
 colz <- colsplit(rownames(nmdsDf),"_",c("spot","num","month","day","year","depth"))
 nmdsDf$Depth <- colz$depth
 
 ggplot(nmdsDf,aes(x=MDS1,y=MDS2,fill=Depth))+geom_point(shape=21,size=2)+geom_hline(yintercept=0,linetype="dashed")+geom_vline(xintercept=0,linetype="dashed")+theme_classic()+scale_fill_manual(values=c("grey30","grey80"),labels=c("Surface (5 m)","DCM"))+xlab("NMDS1")+ylab("NMDS2")+stat_ellipse(aes(color=Depth),level=0.95)+scale_color_manual(values=c("grey30","grey80"),labels=c("Surface (5 m)","DCM"))
-ggsave("../../FigureS4.pdf")
+ggsave("../../FigureS2_NEW.pdf")
 
 anosimOut <- vegan::anosim(dfBray,nmdsDf$Depth)
