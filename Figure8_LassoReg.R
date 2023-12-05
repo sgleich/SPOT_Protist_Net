@@ -1,7 +1,7 @@
 ### SPOT LASSO ANALYSIS ###
 ### Script by: Samantha Gleich ###
-### Figure 6: Lasso Reg ###
-### Last modified: 9/20/23 ###
+### Figure 8: Lasso Reg ###
+### Last modified: 12/5/23 ###
 
 # Load libraries
 library(glmnet)
@@ -52,8 +52,8 @@ dfNew<- subset(dfNew,rownames(dfNew)!="SPOT_115_2_16_12_5m"& rownames(dfNew)!="S
 dfCLR <- as.data.frame(clr(dfNew))
 
 # Let's only keep those ASVs that we included in our networks
-netOut5 <- read.csv("../../Surface_SPOT_Aug2023.csv",header=TRUE,row.names=1) 
-netOutDCM <- read.csv("../../DCM_SPOT_Aug2023.csv",header=TRUE,row.names=1)
+netOut5 <- read.csv("../../Surf_SPOT_Dec2023.csv",header=TRUE,row.names=1) 
+netOutDCM <- read.csv("../../DCM_SPOT_Dec2023.csv",header=TRUE,row.names=1)
 namez <- c(colnames(netOut5),colnames(netOutDCM))
 namez <- unique(namez)
 namez <- str_remove(namez,"S_")
@@ -200,5 +200,5 @@ env <- ggplot(sumz,aes(x=reorder(var,-n),y=n,fill=fin))+geom_bar(stat="identity"
 # ggsave("../../NEW2.pdf",width=10,height=7)
 
 p+env+plot_annotation(tag_levels="a")+plot_layout(nrow=2)
-ggsave("../../Figure8TRY_Sept2023.pdf",width=12,height=12)
+ggsave("../../Figure8_NEW.pdf",width=12,height=12)
 ggarrange(p,env,nrow=2,ncol=1)
