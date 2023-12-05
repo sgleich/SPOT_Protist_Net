@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
-### Figure 1: Bray-curtis similarity as a function of month and year lags ###
+### Figure 3: Bray-curtis similarity as a function of month and year lags ###
 ### By: Samantha Gleich ###
-### Last Updated: 8/7/23 ###
+### Last Updated: 12/5/23 ###
 
 # Libraries
 library(lubridate)
@@ -14,7 +14,7 @@ library(ape)
 library(patchwork)
 
 # Set SPOT working directory
-setwd("~/Desktop/SPOT/export_dir")
+setwd("~/Desktop/SPOT/SPOT_2023")
 
 # Read in ASVs and set up date info
 counts <- read.delim("feature-table.tsv",header=TRUE,row.names=1)
@@ -43,7 +43,7 @@ dfNew <- subset(dfNew,rownames(dfNew)!="SPOT_115_2_16_12_5m"& rownames(dfNew)!="
 
 # Make a "date" column in ASV counts dataframe
 datez <- colsplit(rownames(dfNew),"_",c("spot","Cruise","m","d","y","Depth"))
-env <- read.csv("../SPOT_Env_NewJan11.csv",header=TRUE)
+env <- read.csv("SPOT_Env_NewJan11.csv",header=TRUE)
 datez <- left_join(datez,env)
 datez2 <- colsplit(datez$Date,"/",c("month","day","year"))
 dfNew$month <- datez2$month
@@ -224,7 +224,7 @@ total.month <- left_join(total.month,totalNum)
 total.month$se <- total.month$s/sqrt(total.month$n)
 
 # Plot Bray-curtis similarity vs month lag
-monthPlot <- total.month%>%ggplot(aes(x=month,y=m,color=depth,shape=depth,linetype=depth))+geom_point()+geom_line()+geom_errorbar(aes(ymin=m-se, ymax=m+se), width=.2,position=position_dodge(.3))+theme_classic()+scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12))+xlab("Month Lag")+ylab("Mean Bray-Curis Similarity (+/- SE)")+ggtitle("")+scale_y_continuous(limits=c(0.20,0.40),breaks=c(0.2,0.25,0.3,0.35,0.4))+scale_color_manual(name="Depth",breaks=c("Surface","DCM"),values=c("black","grey60"))+scale_shape_manual(name="Depth",breaks=c("Surface","DCM"),values=c(19,15))+scale_linetype_manual(name="Depth",breaks=c("Surface","DCM"),values=c("solid","dashed"))
+monthPlot <- total.month%>%ggplot(aes(x=month,y=m,color=depth,shape=depth,linetype=depth))+geom_point()+geom_line()+geom_errorbar(aes(ymin=m-se, ymax=m+se), width=.2,position=position_dodge(.1))+theme_classic()+scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12))+xlab("Month Lag")+ylab("Mean Bray-Curis Similarity (+/- SE)")+ggtitle("")+scale_y_continuous(limits=c(0.20,0.40),breaks=c(0.2,0.25,0.3,0.35,0.4))+scale_color_manual(name="Depth",breaks=c("Surface","DCM"),values=c("black","grey60"))+scale_shape_manual(name="Depth",breaks=c("Surface","DCM"),values=c(19,15))+scale_linetype_manual(name="Depth",breaks=c("Surface","DCM"),values=c("solid","dashed"))
 
 # Plot Bray-curtis similarity vs. year lag
 total.year <- totalAll%>%filter(year!=0 & year !=15)%>%group_by(year,depth)%>%summarize(m=mean(value),s=sd(value))
@@ -232,8 +232,8 @@ totalNum <- totalAll%>%filter(year!=0 & year != 15)%>%group_by(year,depth)%>%tal
 total.year <- left_join(total.year,totalNum)
 total.year$se <- total.year$s/sqrt(total.year$n)
 
-yearPlot<- total.year%>%ggplot(aes(x=year,y=m,color=depth,shape=depth,linetype=depth))+geom_point()+geom_line()+geom_errorbar(aes(ymin=m-se, ymax=m+se), width=.2,position=position_dodge(.3))+theme_classic()+scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14))+xlab("Year Lag")+ylab("Mean Bray-Curis Similarity (+/- SE)")+ggtitle("")+scale_y_continuous(limits=c(0.2,0.4),breaks=c(0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5))+scale_color_manual(name="Depth",breaks=c("Surface","DCM"),values=c("black","grey60"))+scale_shape_manual(name="Depth",breaks=c("Surface","DCM"),values=c(19,15))+scale_linetype_manual(name="Depth",breaks=c("Surface","DCM"),values=c("solid","dashed"))
+yearPlot<- total.year%>%ggplot(aes(x=year,y=m,color=depth,shape=depth,linetype=depth))+geom_point()+geom_line()+geom_errorbar(aes(ymin=m-se, ymax=m+se), width=.2,position=position_dodge(.1))+theme_classic()+scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14))+xlab("Year Lag")+ylab("Mean Bray-Curis Similarity (+/- SE)")+ggtitle("")+scale_y_continuous(limits=c(0.2,0.4),breaks=c(0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5))+scale_color_manual(name="Depth",breaks=c("Surface","DCM"),values=c("black","grey60"))+scale_shape_manual(name="Depth",breaks=c("Surface","DCM"),values=c(19,15))+scale_linetype_manual(name="Depth",breaks=c("Surface","DCM"),values=c("solid","dashed"))
 
 monthPlot+yearPlot+plot_layout(ncol=1)+plot_layout(guides = "collect")+plot_annotation(tag_levels="a")
 
-ggsave("Figure1_Aug2023.pdf",width=6,height=8)
+ggsave("../../Figure3_NEW.pdf",width=6,height=8)
