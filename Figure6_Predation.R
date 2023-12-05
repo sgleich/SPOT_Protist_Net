@@ -1,7 +1,7 @@
-### SPOT Network Analysis ###
-### Figure 3: PIDA Comparison - PREDATION ###
+  ### SPOT Network Analysis ###
+### Figure 6: PIDA Comparison - PREDATION ###
 ### By: Samantha Gleich ###
-### Last Updated: 8/24/23 ###
+### Last Updated: 12/5/23 ###
 
 # Load libraries
 library(igraph)
@@ -13,8 +13,8 @@ library(stringr)
 library(stringi)
 
 # Find edges that are in surface and DCM networks
-surf <- read.csv("Surface_SPOT_Aug2023.csv",header=TRUE,row.names=1)
-dcm <- read.csv("DCM_SPOT_Aug2023.csv",header=TRUE,row.names=1)
+surf <- read.csv("../../Surf_SPOT_Dec2023.csv",header=TRUE,row.names=1)
+dcm <- read.csv("../../DCM_SPOT_Dec2023.csv",header=TRUE,row.names=1)
 
 namez <- rownames(surf)
 namez <- str_remove_all(namez,"S_")
@@ -35,7 +35,7 @@ interEdge <- data.frame(get.edgelist(intG))
 
 # Surface graph
 surfEdge <- data.frame(get.edgelist(surfG))
-tax <- read.delim("./SPOT/SPOT_2023/taxonomy_90.tsv",header=TRUE,row.names=NULL)
+tax <- read.delim("taxonomy_90.tsv",header=TRUE,row.names=NULL)
 tax$Confidence <- NULL
 colnames(tax) <- c("X1","Tax1")
 surfEdge <- left_join(surfEdge,tax)
@@ -43,7 +43,7 @@ colnames(tax) <- c("X2","Tax2")
 surfEdge <- left_join(surfEdge,tax)
 
 # Load in PIDA
-pida <- read.csv("./SPOT/SPOT_2023/PIDA_Int.csv",header=TRUE) 
+pida <- read.csv("PIDA_Int.csv",header=TRUE) 
 pidaPred <- subset(pida,Taxonomic.interaction=="Prot - Prot" & Interaction=="pred")
 
 # Parasitism edges
@@ -138,14 +138,28 @@ E(outG)$weight[E(outG)[c3]] <- -1
 taxCols <- c("#E1746D","#76C3D7","#DE5AB1","#D5E0AF","#DED3DC","#87EB58","#D4DC60","#88E5D3","#88AAE1","#DBA85C","#8B7DDA","#9A8D87","#D99CD1","#B649E3","#7EDD90")
 names(taxCols) <- c("Chlorophyte","Ciliate","Cryptophyte","Diatom","Haptophyte","Dinoflagellate","MAST","Other Alveolate","Other Archaeplastida","Other Eukaryote","Other Stramenopile","Rhizaria","Group I Syndiniales","Group II Syndiniales","Unknown Eukaryote")
 
-# PLOT IT UP
-pdf("Pred_DCM.pdf",width=6,height=6)
-ggraph(outG,layout = 'linear', circular = TRUE) + geom_edge_arc(aes(color = as.factor(weight)),alpha=0.8,width=0.7) +
-  geom_node_point(shape = 21, size = 2, aes(fill = fin)) +
-  theme_graph() +scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))+scale_edge_color_manual(values=c("grey60","indianred"),breaks=c(1,-1))+geom_node_text(aes(label = namez, angle = node_angle(x, y)), hjust = -0.15,size=2,fontface="italic")+
-  coord_fixed(xlim = c(-1.4, 1.4), ylim = c(-1.4, 1.4)) 
+namezTry <- unique(V(outG)$namez)
+namezTry <- as.data.frame(namezTry)
+namezTry$letter <-LETTERS[1:nrow(namezTry)]
+namezTry$letter <- ifelse(namezTry$namezTry=="","",namezTry$letter)
+#namezTry[17,] <- c("Chaetoceros","Q")
+#namezTry[18,] <- c("Leptocylindrus","R")
+#namezTry[19,] <- c("Nitzschia","S")
+
+for (i in 1:length(V(outG)$namez)){
+  row <- which(namezTry$namezTry==V(outG)$namez[i])
+  V(outG)$namez[i] <- namezTry$letter[row]
+}
+V(outG)$namez
+
+
+pdf("../../Surf_Pred.pdf",width=6,height=4)
+ggraph(outG, layout = 'linear', circular = TRUE) + geom_edge_arc(aes(color = as.factor(weight)),alpha=0.95,width=0.7) +
+  geom_node_point(shape = 21, size = 6, aes(fill = fin)) +
+  theme_graph() +scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))+scale_edge_color_manual(values=c("grey60","red"),breaks=c(1,-1))+geom_node_text(aes(label = namez),size=4,fontface="bold")
 dev.off()
 
+
 # Legend
-ggplot(taxz,aes(x=1:38,y=2:39,fill=fin))+geom_point(size=3,shape=21)+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))+theme_classic()+theme(legend.position="bottom")
-ggsave("Legend.pdf",width=6,height=4)
+ggplot(taxz,aes(x=1:38,y=2:39,fill=fin))+geom_point(size=6,shape=21)+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))+theme_classic()+theme(legend.position="bottom")
+ggsave("../../Legend.pdf",width=6,height=4)
