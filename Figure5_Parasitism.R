@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Figure 5: PIDA Comparison - PARASITISM ###
 ### By: Samantha Gleich ###
-### Last Updated: 12/5/23 ###
+### Last Updated: 12/12/23 ###
 
 # Load libraries
 library(igraph)
@@ -84,7 +84,9 @@ cercOut <- subset(cerc, g1 %in% pidaCerc$Genus.org1 | g2 %in% pidaCerc$Genus.org
 cercOut <- subset(cercOut, grepl("Cryothecomonas", cercOut$f1)|grepl("Cryothecomonas", cercOut$f2))
 
 # Combine and reorder edge table
-full <- rbind(synG1Out,synG2Out,cercOut)
+# full <- synG2Out
+full <- rbind(synG1Out,cercOut)
+#full <- rbind(synG1Out,synG2Out,cercOut)
 full <- full[c(1:2)]
 full <- full %>% distinct(X1,X2) %>% as.data.frame()
 
@@ -156,14 +158,18 @@ names(taxCols) <- c("Chlorophyte","Ciliate","Cryptophyte","Diatom","Haptophyte",
 V(outG)$namez <- ifelse(grepl("Dino-Group",V(outG)$namez),"",V(outG)$namez)
 V(outG)$namez <- ifelse(grepl("Cryothecom",V(outG)$namez),"Cryothecomonas",V(outG)$namez)
 
+###################################
+namezTry <- unique(V(outG)$namez)
+namezTry <- as.data.frame(namezTry)
+namezTry$letter <-LETTERS[1:nrow(namezTry)]
+namezTry$letter <- ifelse(namezTry$namezTry=="","",namezTry$letter)
+namezTry[4,2] <- "C" 
+namezTry[5,2] <- "D" 
+namezTry[6,2] <- "E" 
+namezTry[11,] <- c("Coscinodiscus","F")
+namezTry[12,] <- c("Guinardia","G")
+namezTry[13,] <- c("Thalassiosira","L")
 
-#namezTry <- unique(V(outG)$namez)
-#namezTry <- as.data.frame(namezTry)
-#namezTry$letter <-LETTERS[1:nrow(namezTry)]
-#namezTry$letter <- ifelse(namezTry$namezTry=="","",namezTry$letter)
-#namezTry[17,] <- c("Coscinodiscus","P")
-#namezTry[18,] <- c("Guinardia","Q")
-#namezTry[16,] <- c("Thalassiosira","R")
 
 for (i in 1:length(V(outG)$namez)){
   row <- which(namezTry$namezTry==V(outG)$namez[i])
@@ -172,13 +178,13 @@ for (i in 1:length(V(outG)$namez)){
 V(outG)$namez
 
 
-pdf("../../Surf_ParaTRYb.pdf",width=15,height=12)
+pdf("../../Surf_ParaB.pdf",width=15,height=12)
 ggraph(outG, layout = 'linear', circular = TRUE) + geom_edge_arc(aes(color = as.factor(weight)),alpha=0.95,width=0.7) +
-  geom_node_point(shape = 21, size = 4, aes(fill = fin)) +
-  theme_graph() +scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))+scale_edge_color_manual(values=c("grey60","red"),breaks=c(1,-1))+geom_node_text(aes(label = namez),vjust=-.6,hjust=-0.1,size=4,fontface="bold")
+  geom_node_point(shape = 21, size = 5, aes(fill = fin)) +
+  theme_graph() +scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))+scale_edge_color_manual(values=c("grey60","red"),breaks=c(1,-1))+geom_node_text(aes(label = namez),size=9,fontface="bold",vjust=-0.9)
 dev.off()
 
 
 # Legend
-ggplot(taxz,aes(x=1:241,y=2:242,fill=fin))+geom_point(size=3,shape=21)+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))+theme_classic()+theme(legend.position="bottom")
+ggplot(taxz,aes(x=1:241,y=2:242,fill=fin))+geom_point(size=5,shape=21)+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))+theme_classic()+theme(legend.position="right")
 ggsave("../../Legend.pdf",width=6,height=4)
