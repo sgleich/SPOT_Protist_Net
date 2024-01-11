@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
-### Figure S3: Taxa barplots ###
+### Figure 2: Taxa barplots ###
 ### By: Samantha Gleich ###
-### Last Updated: 9/19/23 ###
+### Last Updated: 1/11/24 ###
 
 # Load libraries
 library(tidyverse)
@@ -30,6 +30,10 @@ fin <- fin %>% distinct(new,.keep_all = TRUE)
 
 # Let's add the new (meaningful) sample names to our counts dataframe 
 counts <- as.data.frame(t(counts))
+counts$sum <- rowSums(counts)
+counts <- counts/counts$sum
+counts$sum <- NULL
+rowSums(counts)
 counts$namez <- rownames(counts)
 dfNew <- left_join(counts,fin)
 rownames(dfNew) <- dfNew$new
@@ -109,7 +113,7 @@ names(taxCols) <- c("Chlorophytes","Ciliates","Cryptophytes","Diatoms","Haptophy
 
 dfAvg$Month2 <- factor(dfAvg$Month2,levels=c("January (11)","February (10)", "March (10)","April (10)","May (11)","June (10)","July (11)","July (9)","August (9)","September (10)","October (10)","November (10)","December (10)" ))
 
-s <- dfAvg %>% filter(Depth=="Surface") %>% ggplot(aes(x=Month2,y=m))+geom_area(aes(fill = fin, group = fin),position="fill")+theme_classic()+xlab("Month")+ylab("Relative Abundance")+facet_wrap(~Depth)+theme(axis.text.x = element_text(angle=45, hjust=1))+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))
+d <- dfAvg %>% filter(Depth=="DCM") %>% ggplot(aes(x=Month2,y=m))+geom_area(aes(fill = fin, group = fin),position="fill")+theme_classic()+xlab("Month")+ylab("Relative Abundance")+facet_wrap(~Depth)+theme(axis.text.x = element_text(angle=45, hjust=1))+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))
 
 s/d+plot_annotation(tag_levels="a")+plot_layout(guides="collect")
-ggsave("../../Figure2_May2023.pdf",width=6,height=8)
+ggsave("../../Figure2_Jan2024.pdf",width=6,height=8)
