@@ -7,9 +7,9 @@
 ![](static/slide1.png)
 
 
-# Make ASVs in Qiime2 (2022.2)
+# Make ASVs in Qiime2 (v. 2022.2)
 First we will use our raw, 18S-V4 reads to create amplicon sequence variants (ASVs). This pipeline was adapted from a pipeline documented by Sarah Hu (https://github.com/shu251/V4_tagsequencing_18Sdiversity_qiime2)
-## Make V4 classifier using the newest version of the PR2 database (version 5.0.0)
+## Make V4 classifier using the newest version of the PR2 database (v. 5.0.0)
 Import PR2 sequences as qiime artifact:
 ```
 qiime tools import --type 'FeatureData[Sequence]' --input-path pr2_version_5.0.0_SSU_mothur.fasta --output-path pr2_v5.qza
@@ -35,7 +35,7 @@ python run_trim.py manifest.txt
 ```
 qiime tools import --type 'SampleData[PairedEndSequencesWithQuality]' --input-path trimmed_manifest.txt --output-path demux.qza --input-format PairedEndFastqManifestPhred33
 ```
-## Remove 18S-V4 primers 
+## Remove 18S-V4 primers using cutadapt (v. 4.0) 
 ```
 qiime cutadapt trim-paired --i-demultiplexed-sequences demux.qza --p-cores 8 --p-front-f CCAGCASCYGCGGTAATTCC --p-front-r ACTTTCGTTCTTGATYRA --o-trimmed-sequences demux_trimmed.qza
 ```
