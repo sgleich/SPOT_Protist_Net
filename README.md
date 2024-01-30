@@ -39,18 +39,6 @@ qiime tools import --type 'SampleData[PairedEndSequencesWithQuality]' --input-pa
 ```
 qiime cutadapt trim-paired --i-demultiplexed-sequences demux.qza --p-cores 8 --p-front-f CCAGCASCYGCGGTAATTCC --p-front-r ACTTTCGTTCTTGATYRA --o-trimmed-sequences demux_trimmed.qza
 ```
-## Join paired-end sequences and remove merged sequences that are < 300 bp
-```
-qiime vsearch join-pairs --i-demultiplexed-seqs demux_trimmed.qza --o-joined-sequences demux-joined.qza --p-minmergelen 300
-```
-## Quality filter
-```
-qiime quality-filter q-score-joined --i-demux demux-joined.qza --o-filtered-sequences demux-joined-filtered.qza --o-filter-stats demux-joined-filter-stats.qza --p-min-quality 20
-```
-## Dereplicate sequences (i.e. remove dups)
-```
-qiime vsearch dereplicate-sequences --i-sequences demux-joined-filtered.qza --o-dereplicated-table derep_table.qza --o-dereplicated-sequences derep_seqs.qza
-```
 ## Make ASVs
 ```
 mkdir ASVs
@@ -60,17 +48,14 @@ qiime dada2 denoise-paired
 	--o-table ASVs/table \
 	--o-representative-sequences ASVs/rep-seqs \
 	--p-n-threads 8 \
-	--p-trunc-len-f 200 \
+	--p-trunc-len-f 210 \
 	--p-trunc-len-r 200 \
-	--p-max-ee-f 2 \
-	--p-max-ee-r 2 \
-	--p-n-reads-learn 1000000 \
 	--p-chimera-method pooled \
 	--o-denoising-stats ASVs/stats-dada2.qza
   ```
   ## Assign taxonomy 
   ```
- qiime feature-classifier classify-sklearn --i-classifier PR2_V14_Classifier.qza --i-reads ASVs/rep-seqs.qza --o-classification ASVs/tax_sklearn.qza
+ qiime feature-classifier classify-sklearn --i-classifier pr2_v4extracts_v5_classifier.qza --i-reads ASVs/rep-seqs.qza --o-classification ASVs/tax_sklearn.qza
   ```
   ## Convert qza files to TSV
   ```
