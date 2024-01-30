@@ -1,30 +1,30 @@
 # San Pedro Ocean Time-series 18S-V4 Amplicon and Network Analyses 
 **SPOT_Protist_Net**  
 **By: Samantha J. Gleich**  
-**Last updated: November 11, 2022**  
+**Last updated: January 30, 2023**  
 
 
 ![](static/slide1.png)
 
 
-# Make ASVs in Qiime2
+# Make ASVs in Qiime2 (2022.2)
 First we will use our raw, 18S-V4 reads to create amplicon sequence variants (ASVs). This pipeline was adapted from a pipeline documented by Sarah Hu (https://github.com/shu251/V4_tagsequencing_18Sdiversity_qiime2)
-## Make V4 classifier using the newest version of the PR2 database (version 14)
+## Make V4 classifier using the newest version of the PR2 database (version 5.0.0)
 Import PR2 sequences as qiime artifact:
 ```
-qiime tools import --type 'FeatureData[Sequence]' --input-path pr2_version_4.14.0_SSU_mothur.fasta --output-path pr2_v4_14.qza
+qiime tools import --type 'FeatureData[Sequence]' --input-path pr2_version_5.0.0_SSU_mothur.fasta --output-path pr2_v5.qza
 ```
 Import PR2 taxonomy information as qiime artifact: 
 ```
-qiime tools import --type 'FeatureData[Taxonomy]' --input-format HeaderlessTSVTaxonomyFormat --input-path pr2_version_4.14.0_SSU_mothur.txt --output-path pr2_v4_14_tax.qza
+qiime tools import --type 'FeatureData[Taxonomy]' --input-format HeaderlessTSVTaxonomyFormat --input-path pr2_version_5.0.0_SSU_mothur.tax --output-path pr2_v5_tax.qza
 ```
 Extract V4 reads from PR2 sequences:
 ```
-qiime feature-classifier extract-reads --i-sequences pr2_v4_14.qza --p-f-primer CCAGCASCYGCGGTAATTCC --p-r-primer ACTTTCGTTCTTGATYRA --o-reads v4_extracts_v14.qza
+qiime feature-classifier extract-reads --i-sequences pr2_v5.qza --p-f-primer CCAGCASCYGCGGTAATTCC --p-r-primer ACTTTCGTTCTTGATYRA --o-reads v4_extracts_v5.qza
 ```
 Train the V4 classifier: 
 ```
-qiime feature-classifier fit-classifier-naive-bayes --i-reference-reads v4_extracts_v14.qza --i-reference-taxonomy pr2_v4_14_tax.qza --o-classifier pr2_v4_v14_classifier.qza
+qiime feature-classifier fit-classifier-naive-bayes --i-reference-reads v4_extracts_v5.qza --i-reference-taxonomy pr2_v5_tax.qza --o-classifier pr2_v4extracts_v5_classifier.qza
 ```
 ## Trim reads using Trimmomatic (version 0.38)
 Used Sarah Hu's run_trim.py script (https://github.com/shu251/V4_tagsequencing_18Sdiversity_qiime2)
