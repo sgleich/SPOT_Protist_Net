@@ -1,0 +1,151 @@
+## SPOT Network Analysis ###
+### Figure 4: RDA ###
+### By: Samantha Gleich ###
+### Last Updated: 2/2/24 ###
+
+# Load libraries
+library(tidyverse)
+library(reshape2)
+library(ggplot2)
+library(randomcoloR)
+library(vegan)
+library(compositions)
+library(missForest)
+
+# Set SPOT working directory
+setwd("~/Desktop/export_dir_feb2024")
+
+# Load in counts data and manifest file
+counts <- read.delim("feature-table.tsv",header=TRUE,row.names=1,skip=1)
+manifest <- read.delim("manifest.txt",header=FALSE,sep=",")
+
+# We need to rename our samples in the counts dataframe so that they contain meaningful information
+namez <- colsplit(manifest$V2,"-",c("a","b","c","d","e","f","g"))
+namez$depth <- ifelse(grepl("5m",namez$g),"5m","DCM")
+
+# Making a "fin" column that contains the date and depth of each sample
+namez$fin <- paste(namez$c,namez$d,namez$e,namez$f,namez$depth,sep="_")
+
+# Make a new dataframe with old sample name info and new sample name info
+fin <- data.frame(namez=c(manifest$V1),new=c(namez$fin))
+fin$new <- paste("SPOT",fin$new,sep="_")
+fin <- fin %>% distinct(new,.keep_all = TRUE)
+
+# Let's add the new (meaningful) sample names to our counts dataframe 
+counts <- as.data.frame(t(counts))
+counts$namez <- rownames(counts)
+dfNew <- left_join(counts,fin)
+rownames(dfNew) <- dfNew$new
+dfNew$namez <- NULL
+dfNew$new <- NULL
+
+# Add taxonomy information
+tax <- read.delim("taxonomy.tsv",header=TRUE)
+tax <- tax[c(1:2)]
+dfNew <- as.data.frame(t(dfNew))
+dfNew$Feature.ID <- rownames(dfNew)
+dfTax <- left_join(dfNew,tax)
+dfTax <- subset(dfTax,grepl("Eukaryot",dfTax$Taxon))
+dfTax$Feature.ID <- NULL
+dfTax$Taxon <- NULL
+dfTax <- as.data.frame(t(dfTax))
+
+
+runRDA <- function(df,depth){
+  df <- subset(df,grepl(paste(depth),rownames(df)))
+  df <- subset(df,rownames(df)!="SPOT_115_2_16_12_5m"& rownames(df)!="SPOT_115_2_16_12_DCM")
+  
+  normDf <- as.data.frame(clr(df))
+  env <- read.csv("SPOT_EnvData_Feb2024.csv",header=TRUE)
+  colz <- colsplit(rownames(normDf),"_",c("spot","Cruise","month","day","year","Depth"))
+  colz <- left_join(colz,env)
+  colz$Date <- parse_date_time(colz$Date,"Ymd")
+  normDf$Date <- colz$Date
+  colz <- colz %>% arrange(Date) %>% as.data.frame()
+  normDf <- normDf %>% arrange(Date) %>% as.data.frame()
+  normDf$Date <- NULL
+  
+  if (depth=="5m"){
+  keepEnv <- c("DayOfYear","O2Wink","NH4","SiO3","PO4","NO2.NO3","Temp","Beam","Fluor","Oxy","Sal","DayLength","DayDiff","SLA","Free.living.Synechococcales","Particle.associated.Synechococcales","Free.living.SAR11","Particle.associated.SAR11","Free.living.SAR86","Particle.associated.SAR86","MEI","SST","Chla","PP")}
+  
+  if (depth=="DCM"){
+  keepEnv <- c("DayOfYear","O2Wink","NH4","SiO3","PO4","NO2.NO3","Temp","Beam","Fluor","Oxy","Sal","DayLength","DayDiff","SLA","Free.living.Synechococcales","Particle.associated.Synechococcales","Free.living.SAR11","Particle.associated.SAR11","Free.living.SAR86","Particle.associated.SAR86","MEI","SST","Chla","PP","CSDepth")}
+  
+  envTable <- subset(colz,select=c(keepEnv))
+  set.seed(100)
+  envTable <- missForest::missForest(envTable)
+  envTable <- data.frame(envTable$ximp)
+  envTable <- decostand(envTable, method = "standardize")
+  
+  rda.all <- rda (normDf ~ ., envTable)
+  anova (rda.all) 
+  adjR2 <- RsquareAdj(rda.all)$adj.r.squared 
+  
+  rda.0 <- rda (normDf ~ 1, data = envTable) 
+  rda.all <- rda (normDf ~ ., data = envTable)
+  
+  sel.rda <- ordiR2step (rda.0, scope = formula (rda.all), R2scope = adjR2, direction = 'forward', permutations = 999)
+  
+  sel.rda$anova$`Pr(>F)` <- p.adjust (sel.rda$anova$`Pr(>F)`, method = 'holm', n = ncol (envTable))
+  
+  import <- data.frame(sel.rda$anova)
+  sub <- rownames(sel.rda$anova)
+  sub <- str_remove_all(sub,"\\+ ")
+  len <- length(sub)
+  sub <- sub[1:len-1]
+  envTable2 <- subset(envTable,select=c(sub))
+  
+  fin.rda <- rda (normDf ~ ., data = envTable2) 
+  summar <- summary(fin.rda)
+  summar <- data.frame(summar$cont$importance)
+  
+  rdaDf <- scores(fin.rda)
+  rdaDf <- data.frame(rdaDf$sites)
+  t <- colsplit(rownames(rdaDf),"_",c("SPOT","Num","Other"))
+  rdaDf$Cruise <- t$Num
+  env <- subset(env,Depth==paste(depth))
+  rdaDf <- left_join(rdaDf,env)
+  rdaDf$M <- substr(as.character(rdaDf$Date),start=6,stop=7)
+  
+  rdaDf$M <- ifelse(rdaDf$M=="01","January",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="02","February",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="03","March",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="04","April",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="05","May",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="06","June",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="07","July",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="08","August",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="09","September",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="10","October",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="11","November",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="12","December",rdaDf$M)
+  
+  rdaDf$M <- factor(rdaDf$M,levels=c("January","February","March","April","May","June","July","August","September","October","November","December"))
+  return(list(fin.rda,rdaDf,summar))}
+  
+  
+rda5 <- runRDA(dfTax,"5m")
+fin.rda <- rda5[[1]]
+rdaDf <- rda5[[2]]  
+sum <- rda5[[3]]  
+sum <- subset(sum,select=c(grepl("RDA",colnames(sum))))
+rowSums(sum)
+
+
+rdaDCM <- runRDA(dfTax,"DCM")
+fin.rda <- rdaDCM[[1]]
+rdaDf <- rdaDCM[[2]]  
+sum <- rdaDCM[[3]]  
+sum <- subset(sum,select=c(grepl("RDA",colnames(sum))))
+rowSums(sum)
+  
+  #pdf("../PlotDCM.pdf",width=6,height=5)
+  ordiplot(fin.rda,display=c("sites"),type="points",xlab="RDA1 (3.39%)",ylab="RDA2 (1.82%)",main="DCM")
+  month.col <- c("dodgerblue","dodgerblue","darkolivegreen4","darkolivegreen4","darkolivegreen4","goldenrod1","goldenrod1","goldenrod1","firebrick2","firebrick2","firebrick2","dodgerblue")
+  month.shp <- c(21,22,21,22,24,21,22,24,21,22,24,24)
+  points(fin.rda,display="sites",bg=month.col[factor(rdaDf$M)],pch=month.shp[factor(rdaDf$M)],cex=1,col="black")
+  text(fin.rda, display = "bp",col="black",labels=c("","","","","",""),lwd=1.5)
+  #dev.off()
+  
+  
+  #ordiplot(fin.rda,display=c("sites","bp"),type="points",xlab="RDA1 (3.39%)",ylab="RDA2 (1.82%)",main="DCM")
