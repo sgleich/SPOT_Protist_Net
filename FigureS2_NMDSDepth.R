@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Figure S2: Surface and DCM NMDS plot ###
 ### By: Samantha Gleich ###
-### Last Updated: 12/5/23 ###
+### Last Updated: 2/2/24 ###
 
 # Libraries
 library(reshape2)
@@ -12,10 +12,10 @@ library(ggpubr)
 library(patchwork)
 
 # Set SPOT working directory
-setwd("/Users/samanthagleich/Desktop/SPOT/SPOT_2023")
+setwd("/Users/samanthagleich/Desktop/export_dir_feb2024")
 
 # Read in ASVs and set up date info
-counts <- read.delim("feature-table.tsv",header=TRUE,row.names=1)
+counts <- read.delim("feature-table.tsv",header=TRUE,row.names=1,skip=1)
 manifest <- read.delim("manifest.txt",header=FALSE,sep=",")
 counts <- as.data.frame(t(counts))
 
@@ -38,7 +38,7 @@ dfNew$new <- NULL
 
 dfNew <- subset(dfNew,rownames(dfNew)!="SPOT_115_2_16_12_5m"& rownames(dfNew)!="SPOT_115_2_16_12_DCM")
 
-tax <- read.delim("taxonomy_90.tsv",header=TRUE)
+tax <- read.delim("taxonomy.tsv",header=TRUE)
 tax <- subset(tax,grepl("Eukaryot",tax$Taxon))
 
 dfNew <- as.data.frame(t(dfNew))
@@ -56,6 +56,7 @@ colz <- colsplit(rownames(nmdsDf),"_",c("spot","num","month","day","year","depth
 nmdsDf$Depth <- colz$depth
 
 ggplot(nmdsDf,aes(x=MDS1,y=MDS2,fill=Depth))+geom_point(shape=21,size=2)+geom_hline(yintercept=0,linetype="dashed")+geom_vline(xintercept=0,linetype="dashed")+theme_classic()+scale_fill_manual(values=c("grey30","grey80"),labels=c("Surface (5 m)","DCM"))+xlab("NMDS1")+ylab("NMDS2")+stat_ellipse(aes(color=Depth),level=0.95)+scale_color_manual(values=c("grey30","grey80"),labels=c("Surface (5 m)","DCM"))
-ggsave("../../FigureS2_NEW.pdf")
+ggsave("../FigureS2_Feb2024.pdf",width=5,height=4)
 
 anosimOut <- vegan::anosim(dfBray,nmdsDf$Depth)
+summary(anosimOut)
