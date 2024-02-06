@@ -1,7 +1,9 @@
 ### SPOT Network Analysis ###
 ### Pre-processing (Filtering + GAM-transforming) and Network Analysis (Graphical lasso) ###
 ### By: Samantha Gleich ###
-### Last Updated: 12/4/23 ###
+### Last Updated: 2/6/24 ###
+
+set.seed(100)
 
 # Load libraries
 library(devtools)
@@ -21,7 +23,7 @@ library(corrplot)
 library(stringi)
 
 # Load in the counts dataframe from qiime2 and the manifest used to run the qiime2 pipeline
-counts <- read.delim(file.choose(),header=TRUE,row.names=1)
+counts <- read.delim(file.choose(),header=TRUE,row.names=1,skip=1)
 manifest <- read.delim(file.choose(),header=FALSE,sep=",")
 
 # We need to rename our samples in the counts dataframe so that they contain meaningful information
@@ -74,6 +76,17 @@ namez <- unique(namez) # These are all of the ASVs that will be included in both
 dfCLR <- as.data.frame(dfCLR)
 dfCLRFilt <- subset(dfCLR,select=c(namez))
 
+dfCLRFilt <- subset(dfCLRFilt,rownames(dfCLRFilt)!="SPOT_115_2_16_12_5m"& rownames(dfCLRFilt)!="SPOT_115_2_16_12_DCM")
+
+# Env
+env <- read.csv(file.choose(),header=TRUE,row.names=1)
+envImp <- env[c(4:28)]
+set.seed(100)
+envImp <- missForest::missForest(envImp)
+envImp$OOBerror
+envImp <- data.frame(envImp$ximp)
+envImp <- data.frame(env[c(1:3)],envImp)
+
 # Now we need to step up some vectors for our NetGAM time-series transformation (vectors are MOY and DayofTS -- see NetGAM documentation)
 vec <- rep(1:12, length=192)
 vec <- as.data.frame(vec)
@@ -83,25 +96,25 @@ colnames(vec)<- c("month","year","day")
 vec <- vec[9:nrow(vec),]
 vec$day <- 1:nrow(vec)
 
-env <- read.csv(file.choose(),header=TRUE)
-env$year <- stri_sub(env$Date, -2,-1)
-env$year <- as.numeric(as.character(env$year))
-colz <- colsplit(env$Date,"/",c("m","d","y"))
-env <- data.frame(month=c(env$Month),year=c(env$year),Cruise=c(env$Cruise),Depth=c(env$Depth))
-env <- left_join(env,vec)
-
-dfCLRFilt <- subset(dfCLRFilt,rownames(dfCLRFilt)!="SPOT_115_2_16_12_5m"& rownames(dfCLRFilt)!="SPOT_115_2_16_12_DCM")
+# Parameters for NetGAM
+colz <- colsplit(envImp$Date,"/",c("m","d","y"))
+params <- data.frame(month=c(colz$m),year=c(colz$y),Cruise=c(envImp$Cruise),Depth=c(envImp$Depth))
+params$month <- as.numeric(params$month)
+params$year <- as.numeric(params$year)
+params <- left_join(params,vec)
 
 # Add month of year and day of time-series information to our CLR-transformed dataframe
+params <- params[c(1,3:5)]
 colz <- colsplit(rownames(dfCLRFilt),"_",c("SPOT","Cruise","Month","Day","Year","Depth"))
 dfCLRFilt$Cruise <- colz$Cruise
 dfCLRFilt$Depth <- colz$Depth
-env$year <- NULL
-namez <- rownames(dfCLRFilt)
-dfCLRFilt <- left_join(dfCLRFilt,env)
+dfCLRFilt <- left_join(dfCLRFilt,params)
+dfCLRFilt <- dfCLRFilt %>% arrange(Cruise) %>% as.data.frame()
+dfCLRFilt <- left_join(dfCLRFilt,envImp)
+rownames(dfCLRFilt) <- paste("SPOT",dfCLRFilt$Cruise,dfCLRFilt$Depth,sep="-")
 dfCLRFilt$Depth <- NULL
 dfCLRFilt$Cruise <- NULL
-rownames(dfCLRFilt) <- namez
+
 
 df5CLR <- subset(dfCLRFilt,grepl("5m", rownames(dfCLRFilt)))
 dfDCMCLR<- subset(dfCLRFilt,grepl("DCM", rownames(dfCLRFilt)))
@@ -111,6 +124,8 @@ df5Month <- df5CLR$month
 df5Day <- df5CLR$day
 df5CLR$month <- NULL
 df5CLR$day <- NULL
+df5CLR$Date <- NULL
+df5CLR$CSDepth <- NULL
 
 # NetGAM also doesn't like column names that start with numbers. So, we'll add an "S" to all column names.
 namez <- colnames(df5CLR)
@@ -128,6 +143,8 @@ dfDCMMonth <- dfDCMCLR$month
 dfDCMDay <- dfDCMCLR$day
 dfDCMCLR$month <- NULL
 dfDCMCLR$day <- NULL
+dfDCMCLR$Date <- NULL
+dfDCMCLR$SiO3 <- NULL
 
 # NetGAM also doesn't like column names that start with numbers. So, we'll add an "S" to all column names.
 namez <- colnames(dfDCMCLR)
@@ -148,9 +165,10 @@ netGAMDCM <- as.matrix(netGAMDCM)
 
 # Run graphical lasso network
 set.seed(100)
-lams  <- pulsar::getLamPath(pulsar::getMaxCov(netGAM5), .01, len=30)
+npn <- huge.npn(netGAM5)
+lams  <- pulsar::getLamPath(pulsar::getMaxCov(npn), .01, len=30)
 hugeargs <- list(lambda=lams, verbose=FALSE)
-outd <- pulsar::batch.pulsar(netGAM5, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
+outd <- pulsar::batch.pulsar(npn, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
 opt <- outd$stars
 n <- opt$opt.index
 # Get output adjacency matrix from graphical lasso model
@@ -166,6 +184,6 @@ fit.fin <- as.matrix(fit.fin)
 dim(fit.fin)
 
 
-write.csv(fit.fin,"../../Surf_SPOT_Dec2023.csv")
-# lambda = 0.13 (5m)
-# lambda = 0.15 (DCM)
+write.csv(fit.fin,"DCM_SPOT_Feb2024.csv")
+# lambda = 0.11 (5m)
+# lambda = 0.11 (DCM)
