@@ -1,7 +1,7 @@
 ## SPOT Network Analysis ###
 ### Figure 4: RDA ###
 ### By: Samantha Gleich ###
-### Last Updated: 2/2/24 ###
+### Last Updated: 2/9/24 ###
 
 # Load libraries
 library(tidyverse)
@@ -11,6 +11,7 @@ library(randomcoloR)
 library(vegan)
 library(compositions)
 library(missForest)
+library(lubridate)
 
 # Set SPOT working directory
 setwd("~/Desktop/export_dir_feb2024")
@@ -56,20 +57,20 @@ runRDA <- function(df,depth){
   df <- subset(df,rownames(df)!="SPOT_115_2_16_12_5m"& rownames(df)!="SPOT_115_2_16_12_DCM")
   
   normDf <- as.data.frame(clr(df))
-  env <- read.csv("SPOT_EnvData_Feb2024.csv",header=TRUE)
+  env <- read.csv("SPOT_Env_Feb2024_Final.csv",header=TRUE)
   colz <- colsplit(rownames(normDf),"_",c("spot","Cruise","month","day","year","Depth"))
   colz <- left_join(colz,env)
-  colz$Date <- parse_date_time(colz$Date,"Ymd")
+  colz$Date <- parse_date_time(colz$Date,"mdy")
   normDf$Date <- colz$Date
   colz <- colz %>% arrange(Date) %>% as.data.frame()
   normDf <- normDf %>% arrange(Date) %>% as.data.frame()
   normDf$Date <- NULL
   
   if (depth=="5m"){
-  keepEnv <- c("DayOfYear","O2Wink","NH4","SiO3","PO4","NO2.NO3","Temp","Beam","Fluor","Oxy","Sal","DayLength","DayDiff","SLA","Free.living.Synechococcales","Particle.associated.Synechococcales","Free.living.SAR11","Particle.associated.SAR11","Free.living.SAR86","Particle.associated.SAR86","MEI","SST","Chla","PP")}
+    keepEnv <- c("DayOfYear","O2Wink","NH4","SiO3","PO4","NO2.NO3","Temp","Beam","Fluor","Oxy","Sal","DayLength","DayDiff","SLA","Free.living.Synechococcales","Particle.associated.Synechococcales","Free.living.SAR11","Particle.associated.SAR11","Free.living.Flavobacteriales","Particle.associated.Flavobacteriales","MEI","SST","Chla","PP")}
   
   if (depth=="DCM"){
-  keepEnv <- c("DayOfYear","O2Wink","NH4","SiO3","PO4","NO2.NO3","Temp","Beam","Fluor","Oxy","Sal","DayLength","DayDiff","SLA","Free.living.Synechococcales","Particle.associated.Synechococcales","Free.living.SAR11","Particle.associated.SAR11","Free.living.SAR86","Particle.associated.SAR86","MEI","SST","Chla","PP","CSDepth")}
+    keepEnv <- c("DayOfYear","O2Wink","NH4","PO4","NO2.NO3","Temp","Beam","Fluor","Oxy","Sal","DayLength","DayDiff","SLA","Free.living.Synechococcales","Particle.associated.Synechococcales","Free.living.SAR11","Particle.associated.SAR11","Free.living.Flavobacteriales","Particle.associated.Flavobacteriales","MEI","SST","Chla","PP","CSDepth")}
   
   envTable <- subset(colz,select=c(keepEnv))
   set.seed(100)
@@ -86,7 +87,7 @@ runRDA <- function(df,depth){
   
   sel.rda <- ordiR2step (rda.0, scope = formula (rda.all), R2scope = adjR2, direction = 'forward', permutations = 999)
   
-  sel.rda$anova$`Pr(>F)` <- p.adjust (sel.rda$anova$`Pr(>F)`, method = 'holm', n = ncol (envTable))
+  sel.rda$anova$`Pr(>F)` <- p.adjust (sel.rda$anova$`Pr(>F)`, method = 'bonferroni', n = ncol (envTable))
   
   import <- data.frame(sel.rda$anova)
   sub <- rownames(sel.rda$anova)
@@ -105,25 +106,26 @@ runRDA <- function(df,depth){
   rdaDf$Cruise <- t$Num
   env <- subset(env,Depth==paste(depth))
   rdaDf <- left_join(rdaDf,env)
-  rdaDf$M <- substr(as.character(rdaDf$Date),start=6,stop=7)
+  c <- colsplit(rdaDf$Date,"/",c("M","Day","Year"))
+  rdaDf$M <- c$M
   
-  rdaDf$M <- ifelse(rdaDf$M=="01","January",rdaDf$M)
-  rdaDf$M <- ifelse(rdaDf$M=="02","February",rdaDf$M)
-  rdaDf$M <- ifelse(rdaDf$M=="03","March",rdaDf$M)
-  rdaDf$M <- ifelse(rdaDf$M=="04","April",rdaDf$M)
-  rdaDf$M <- ifelse(rdaDf$M=="05","May",rdaDf$M)
-  rdaDf$M <- ifelse(rdaDf$M=="06","June",rdaDf$M)
-  rdaDf$M <- ifelse(rdaDf$M=="07","July",rdaDf$M)
-  rdaDf$M <- ifelse(rdaDf$M=="08","August",rdaDf$M)
-  rdaDf$M <- ifelse(rdaDf$M=="09","September",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="1","January",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="2","February",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="3","March",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="4","April",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="5","May",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="6","June",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="7","July",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="8","August",rdaDf$M)
+  rdaDf$M <- ifelse(rdaDf$M=="9","September",rdaDf$M)
   rdaDf$M <- ifelse(rdaDf$M=="10","October",rdaDf$M)
   rdaDf$M <- ifelse(rdaDf$M=="11","November",rdaDf$M)
   rdaDf$M <- ifelse(rdaDf$M=="12","December",rdaDf$M)
   
   rdaDf$M <- factor(rdaDf$M,levels=c("January","February","March","April","May","June","July","August","September","October","November","December"))
   return(list(fin.rda,rdaDf,summar))}
-  
-  
+
+
 rda5 <- runRDA(dfTax,"5m")
 fin.rda <- rda5[[1]]
 rdaDf <- rda5[[2]]  
@@ -138,14 +140,17 @@ rdaDf <- rdaDCM[[2]]
 sum <- rdaDCM[[3]]  
 sum <- subset(sum,select=c(grepl("RDA",colnames(sum))))
 rowSums(sum)
-  
-  #pdf("../PlotDCM.pdf",width=6,height=5)
-  ordiplot(fin.rda,display=c("sites"),type="points",xlab="RDA1 (3.39%)",ylab="RDA2 (1.82%)",main="DCM")
-  month.col <- c("dodgerblue","dodgerblue","darkolivegreen4","darkolivegreen4","darkolivegreen4","goldenrod1","goldenrod1","goldenrod1","firebrick2","firebrick2","firebrick2","dodgerblue")
-  month.shp <- c(21,22,21,22,24,21,22,24,21,22,24,24)
-  points(fin.rda,display="sites",bg=month.col[factor(rdaDf$M)],pch=month.shp[factor(rdaDf$M)],cex=1,col="black")
-  text(fin.rda, display = "bp",col="black",labels=c("","","","","",""),lwd=1.5)
-  #dev.off()
-  
-  
-  #ordiplot(fin.rda,display=c("sites","bp"),type="points",xlab="RDA1 (3.39%)",ylab="RDA2 (1.82%)",main="DCM")
+
+pdf("../PlotDCM_Feb9b.pdf",width=6,height=5)
+ordiplot(fin.rda,display=c("sites"),type="points",xlab="RDA1 (3.46%)",ylab="RDA2 (1.85%)",main="DCM")
+month.col <- c("dodgerblue","dodgerblue","darkolivegreen4","darkolivegreen4","darkolivegreen4","goldenrod1","goldenrod1","goldenrod1","firebrick2","firebrick2","firebrick2","dodgerblue")
+month.shp <- c(21,22,21,22,24,21,22,24,21,22,24,24)
+points(fin.rda,display="sites",bg=month.col[factor(rdaDf$M)],pch=month.shp[factor(rdaDf$M)],cex=1,col="black")
+#text(fin.rda, display = "bp",col="black",labels=c("","","","","",""),lwd=1.5)
+text(fin.rda, display = "bp",col="black",lwd=1.5)
+dev.off()
+
+
+write.csv(sum,"../all_DCMrda_axes.csv")
+
+#ordiplot(fin.rda,display=c("sites","bp"),type="points",xlab="RDA1 (3.39%)",ylab="RDA2 (1.82%)",main="DCM")
