@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Pre-processing (Filtering + GAM-transforming) and Network Analysis (Graphical lasso) ###
 ### By: Samantha Gleich ###
-### Last Updated: 2/6/24 ###
+### Last Updated: 2/12/24 ###
 
 set.seed(100)
 
@@ -12,14 +12,8 @@ library(compositions)
 library(NetGAM)
 library(mgcv)
 library(reshape2)
-library(taglasso)
-library(parallel)
-library(mgcv)
 library(huge)
 library(pulsar)
-library(batchtools)
-library(ape)
-library(corrplot)
 library(stringi)
 
 # Load in the counts dataframe from qiime2 and the manifest used to run the qiime2 pipeline
@@ -80,7 +74,7 @@ dfCLRFilt <- subset(dfCLRFilt,rownames(dfCLRFilt)!="SPOT_115_2_16_12_5m"& rownam
 
 # Env
 env <- read.csv(file.choose(),header=TRUE,row.names=1)
-envImp <- env[c(4:28)]
+envImp <- env[c(4:22,26:31)]
 set.seed(100)
 envImp <- missForest::missForest(envImp)
 envImp$OOBerror
@@ -167,7 +161,7 @@ netGAMDCM <- as.matrix(netGAMDCM)
 set.seed(100)
 npn <- huge.npn(netGAM5)
 lams  <- pulsar::getLamPath(pulsar::getMaxCov(npn), .01, len=30)
-hugeargs <- list(lambda=lams, verbose=FALSE)
+hugeargs <- list(lambda=lams, verbose=FALSE,method='glasso')
 outd <- pulsar::batch.pulsar(npn, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
 opt <- outd$stars
 n <- opt$opt.index
@@ -184,6 +178,6 @@ fit.fin <- as.matrix(fit.fin)
 dim(fit.fin)
 
 
-write.csv(fit.fin,"DCM_SPOT_Feb2024.csv")
-# lambda = 0.11 (5m)
-# lambda = 0.11 (DCM)
+write.csv(fit.fin,"Surf_SPOT_Feb12_2024.csv")
+# lambda = 0.18 (5m)
+# lambda = 0.18 (DCM)
