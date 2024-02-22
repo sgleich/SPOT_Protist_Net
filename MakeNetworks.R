@@ -179,5 +179,5 @@ dim(fit.fin)
 
 
 write.csv(fit.fin,"Surf_SPOT_Net_2024.csv")
-# lambda = 0.11 (5m)
+# lambda = 0.18 (5m)
 # lambda = 0.18 (DCM)
