@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Figure 6: PIDA Comparison - PREDATION ###
 ### By: Samantha Gleich ###
-### Last Updated: 2/6/24 ###
+### Last Updated: 2/13/24 ###
 
 # Load libraries
 library(igraph)
@@ -13,8 +13,8 @@ library(stringr)
 library(stringi)
 
 # Find edges that are in surface and DCM networks
-surf <- read.csv("Surf_SPOT_Feb2024.csv",header=TRUE,row.names=1)
-dcm <- read.csv("DCM_SPOT_Feb2024.csv",header=TRUE,row.names=1)
+surf <- read.csv("Surf_SPOT_Feb12_2024.csv",header=TRUE,row.names=1)
+dcm <- read.csv("DCM_SPOT_Feb12_2024.csv",header=TRUE,row.names=1)
 
 namez <- rownames(surf)
 namez <- str_remove_all(namez,"S_")
@@ -149,10 +149,10 @@ V(outG)$namez <- d$Letter
 pdf("../DCM_Pred.pdf",width=9,height=6)
 ggraph(outG, layout = 'linear', circular = TRUE) + geom_edge_arc(aes(color = as.factor(weight)),alpha=0.95,width=0.7) +
   geom_node_point(shape = 21, size = 6, aes(fill = fin)) +
-  theme_graph() +scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))+scale_edge_color_manual(values=c("grey60","red"),breaks=c(1,-1))+geom_node_text(aes(label = namez),size=4,fontface="bold")
+  theme_graph() +scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))+scale_edge_color_manual(values=c("grey70","blue"),breaks=c(1,-1))+geom_node_text(aes(label = namez),size=4,fontface="bold")
 dev.off()
 
 
 # Legend
-ggplot(taxz,aes(x=1:81,y=2:82,fill=fin))+geom_point(size=6,shape=21)+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))+theme_classic()+theme(legend.position="bottom")
+ggplot(taxz,aes(x=1:82,y=2:83,fill=fin))+geom_point(size=6,shape=21)+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))+theme_classic()+theme(legend.position="bottom")
 ggsave("../Legend.pdf",width=6,height=4)
