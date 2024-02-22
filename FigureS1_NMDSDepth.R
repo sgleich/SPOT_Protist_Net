@@ -49,7 +49,7 @@ dfNorm <- decostand(dfNew,method="total")
 dfBray <- vegdist(dfNorm,method="bray")
 
 nmdsOut <- metaMDS(dfBray,distance="bray",k=2)
-nmdsOut$stress #0.213 kind of high :/
+nmdsOut$stress #0.213 
 
 nmdsDf <- data.frame(nmdsOut$points)
 colz <- colsplit(rownames(nmdsDf),"_",c("spot","num","month","day","year","depth"))
