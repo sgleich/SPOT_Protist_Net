@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Figure 7: PIDA Comparison - SYMBIOSIS ###
 ### By: Samantha Gleich ###
-### Last Updated: 2/6/24 ###
+### Last Updated: 2/13/24 ###
 
 # Load libraries
 library(igraph)
@@ -13,8 +13,8 @@ library(stringr)
 library(stringi)
 
 # Find edges that are in surface and DCM networks
-surf <- read.csv("Surf_SPOT_Feb2024.csv",header=TRUE,row.names=1)
-dcm <- read.csv("DCM_SPOT_Feb2024.csv",header=TRUE,row.names=1)
+surf <- read.csv("Surf_SPOT_Feb12_2024.csv",header=TRUE,row.names=1)
+dcm <- read.csv("DCM_SPOT_Feb12_2024.csv",header=TRUE,row.names=1)
 
 namez <- rownames(surf)
 namez <- str_remove_all(namez,"S_")
@@ -75,12 +75,11 @@ cil <- subset(cil, grepl("Eutintin",cil$g1)|grepl("Eutintin",cil$g2))
 
 diatom1 <- subset(diatom,grepl("Eutinn",diatom$g1)|grepl("Eutinn",diatom$g2))
 diatom2 <- subset(diatom,grepl("MAST-3",diatom$g1)|grepl("MAST-3",diatom$g2))
-diatom3 <- subset(diatom,grepl("MAST-4",diatom$g1)|grepl("MAST-4",diatom$g2))
 diatom2 <- subset(diatom2,grepl("Leptocylindrus",diatom2$g1)|grepl("Leptocylindrus",diatom2$g2))
-diatom3 <- subset(diatom3,grepl("Leptocylindrus",diatom3$g1)|grepl("Leptocylindrus",diatom3$g2))
+
 
 # Combine all
-full <- rbind(poly,acanth,cil,diatom1,diatom2,diatom3)
+full <- rbind(poly,acanth,cil,diatom1,diatom2)
 
 # Prepare for plotting
 outG <-graph_from_data_frame(full,directed=FALSE)
@@ -152,7 +151,7 @@ V(outG)$namez <- d$Letter
 pdf("../DCM_Other.pdf",width=6,height=4)
 ggraph(outG, layout = 'linear', circular = TRUE) + geom_edge_arc(aes(color = as.factor(weight)),alpha=0.95,width=0.7) +
   geom_node_point(shape = 21, size = 6, aes(fill = fin)) +
-  theme_graph() +scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))+scale_edge_color_manual(values=c("grey60","red"),breaks=c(1,-1))+geom_node_text(aes(label = namez),size=4,fontface="bold")
+  theme_graph() +scale_fill_manual(name="Taxonomic Groups",values=c(taxCols))+scale_edge_color_manual(values=c("grey70","blue"),breaks=c(1,-1))+geom_node_text(aes(label = namez),size=4,fontface="bold")
 dev.off()
 
 # Legend
