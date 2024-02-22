@@ -162,7 +162,7 @@ set.seed(100)
 npn <- huge.npn(netGAM5)
 lams  <- pulsar::getLamPath(pulsar::getMaxCov(npn), .01, len=30)
 hugeargs <- list(lambda=lams, verbose=FALSE,method='glasso')
-outd <- pulsar::batch.pulsar(npn, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
+outd <- pulsar(npn, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
 opt <- outd$stars
 n <- opt$opt.index
 # Get output adjacency matrix from graphical lasso model
@@ -178,6 +178,6 @@ fit.fin <- as.matrix(fit.fin)
 dim(fit.fin)
 
 
-write.csv(fit.fin,"Surf_SPOT_Feb12_2024.csv")
-# lambda = 0.18 (5m)
+write.csv(fit.fin,"Surf_SPOT_Net_2024.csv")
+# lambda = 0.11 (5m)
 # lambda = 0.18 (DCM)
