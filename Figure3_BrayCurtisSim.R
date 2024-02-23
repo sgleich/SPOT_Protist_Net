@@ -1,7 +1,7 @@
 ### SPOT Network Analysis ###
 ### Figure 3: Bray-curtis similarity as a function of months between samples ###
 ### By: Samantha Gleich ###
-### Last Updated: 1/30/24 ###
+### Last Updated: 2/23/24 ###
 
 # Libraries
 library(lubridate)
@@ -43,7 +43,7 @@ dfNew <- subset(dfNew,rownames(dfNew)!="SPOT_115_2_16_12_5m"& rownames(dfNew)!="
 
 # Make a "date" column in ASV counts dataframe
 datez <- colsplit(rownames(dfNew),"_",c("spot","Cruise","m","d","y","Depth"))
-env <- read.csv("../SPOT/SPOT_2023/SPOT_Env_NewJan11.csv",header=TRUE)
+env <- read.csv("SPOT_Env_Feb2024_Final.csv",header=TRUE)
 datez <- left_join(datez,env)
 datez2 <- colsplit(datez$Date,"/",c("month","day","year"))
 dfNew$month <- datez2$month
@@ -179,9 +179,9 @@ total.month$se <- total.month$s/sqrt(total.month$n)
 s <- seq(from=0,to=177,by=6)
 
 # Plot Bray-curtis similarity vs month lag
-dcmP <- total.month%>%filter(depth=="Surface") %>% ggplot(aes(x=month,y=m))+geom_point(shape=21,fill="grey",size=2)+geom_line(linetype="dashed")+geom_errorbar(aes(ymin=m-se, ymax=m+se), width=.2,position=position_dodge(.1))+theme_classic()+scale_x_continuous(breaks=c(s))+xlab("Number of Months Between Samples")+ylab("Mean Bray-Curis Similarity (+/- SE)")+ggtitle("DCM")+theme(axis.text.x = element_text(angle = 45,hjust=1))+ylim(0.08,0.4)
+dcmP <- total.month%>%filter(depth=="DCM") %>% ggplot(aes(x=month,y=m))+geom_point(shape=21,fill="grey",size=2)+geom_errorbar(aes(ymin=m-se, ymax=m+se), width=.2,position=position_dodge(.1))+theme_classic()+scale_x_continuous(breaks=c(s))+xlab("Number of Months Between Samples")+ylab("Mean Bray-Curis Similarity (+/- SE)")+ggtitle("DCM")+theme(axis.text.x = element_text(angle = 45,hjust=1))+ylim(0.08,0.4)
 
 
 surfP+dcmP+plot_layout(ncol=1)+plot_layout(guides = "collect")+plot_annotation(tag_levels="a")
 
-ggsave("../Figure3_Feb2024.pdf",width=6,height=8)
+#ggsave("Figure3.pdf",width=6,height=8)
