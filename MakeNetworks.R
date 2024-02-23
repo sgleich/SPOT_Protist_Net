@@ -1,24 +1,21 @@
 ### SPOT Network Analysis ###
-### Pre-processing (Filtering + GAM-transforming) and Network Analysis (Graphical lasso) ###
+### Figure 2: Taxa barplots ###
 ### By: Samantha Gleich ###
-### Last Updated: 2/12/24 ###
-
-set.seed(100)
+### Last Updated: 2/23/24 ###
 
 # Load libraries
-library(devtools)
 library(tidyverse)
-library(compositions)
-library(NetGAM)
-library(mgcv)
 library(reshape2)
-library(huge)
-library(pulsar)
-library(stringi)
+library(ggplot2)
+library(randomcoloR)
+library(vegan)
 
-# Load in the counts dataframe from qiime2 and the manifest used to run the qiime2 pipeline
-counts <- read.delim(file.choose(),header=TRUE,row.names=1,skip=1)
-manifest <- read.delim(file.choose(),header=FALSE,sep=",")
+# Set working directory
+setwd("~/Desktop/export_dir_feb2024")
+
+# Load in counts data and manifest file
+counts <- read.delim("feature-table.tsv",header=TRUE,row.names=1,skip=1)
+manifest <- read.delim("manifest.txt",header=FALSE,sep=",")
 
 # We need to rename our samples in the counts dataframe so that they contain meaningful information
 namez <- colsplit(manifest$V2,"-",c("a","b","c","d","e","f","g"))
@@ -33,151 +30,90 @@ fin <- fin %>% distinct(new,.keep_all = TRUE)
 
 # Let's add the new (meaningful) sample names to our counts dataframe 
 counts <- as.data.frame(t(counts))
+counts$sum <- rowSums(counts)
+counts <- counts/counts$sum
+counts$sum <- NULL
+rowSums(counts)
 counts$namez <- rownames(counts)
 dfNew <- left_join(counts,fin)
 rownames(dfNew) <- dfNew$new
 dfNew$namez <- NULL
 dfNew$new <- NULL
 
-# Now let's apply a clr transformation to our dataframe
-dfCLR <- clr(dfNew)
+# Add taxonomy information
+tax <- read.delim("taxonomy.tsv",header=TRUE)
+tax <- tax[c(1:2)]
+dfNew <- as.data.frame(t(dfNew))
+dfNew$Feature.ID <- rownames(dfNew)
 
-# Let's separate the non-clr transformed samples by depth 
-dfNew <- subset(dfNew,rownames(dfNew)!="SPOT_115_2_16_12_5m"& rownames(dfNew)!="SPOT_115_2_16_12_DCM")
-df5 <- subset(dfNew,grepl("5m", rownames(dfNew)))
-dfDCM<- subset(dfNew,grepl("DCM", rownames(dfNew)))
-df5 <- as.data.frame(t(df5))
-dfDCM <- as.data.frame(t(dfDCM))
+# Let's add the taxonomy information associated with each ASV to our dataframe
+# tax <- read.delim(file.choose(),header=TRUE)
+# tax <- tax[c(1:2)]
+# dfNew$Feature.ID <- rownames(dfNew)
+dfTax <- left_join(dfNew,tax)
 
-# This is our ASV filtration step. If we include all ~30,000 ASVs in the network analysis it would take too long to run and it would be difficult to interpret the output. Instead, we will filter our surface (5 m) and DCM datasets so that only ASVs that are non-zero in > 20% of samples are included in the network analysis
-df5Filt <- subset(df5,rowSums(df5==0) <= 98) # ~20% of samples have to be non-zero
-# Optional: Check to see how many 0s are in the dataframe for each ASV
-# df5Filt$count <- rowSums(df5Filt==0) 
-# df5Filt$count <- NULL
+# Now let's choose specific taxonomic groups to visualize in our plots
+dfTax <- subset(dfTax,grepl("Eukaryot",dfTax$Taxon))
+taxz <- colsplit(dfTax$Taxon,";",c("Supergroup","Domain","Kingdom","Phylum","Class","Order","Family","Genus","Species"))
+taxz$fin <- ifelse(taxz$Class=="Dinophyceae","Dinoflagellates",NA)
+taxz$fin <- ifelse(taxz$Order=="Dino-Group-II","Group II Syndiniales",taxz$fin)
+taxz$fin <- ifelse(taxz$Order=="Dino-Group-I","Group I Syndiniales",taxz$fin)
+taxz$fin <- ifelse(taxz$Class=="Bacillariophyceae","Diatoms",taxz$fin)
+taxz$fin <- ifelse(grepl("MAST",taxz$Family),"MAST groups",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Rhizaria","Rhizaria",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Chlorophyta","Chlorophytes",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Cryptophyta","Cryptophytes",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Haptophyta","Haptophytes",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Ciliophora","Ciliates",taxz$fin)
+taxz$fin <- ifelse(taxz$Phylum=="Metazoa","Metazoans",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Stramenopiles" & is.na(taxz$fin),"Other Stramenopiles",taxz$fin)
+taxz$fin <- ifelse(taxz$Domain=="Archaeplastida" & is.na(taxz$fin),"Other Archaeplastids",taxz$fin)
+taxz$fin <- ifelse(taxz$Kingdom=="Alveolata" & is.na(taxz$fin),"Other Alveolates",taxz$fin)
+taxz$fin <- ifelse(is.na(taxz$fin),"Other Eukaryotes",taxz$fin)
+unique(taxz$fin)
 
-dfDCMFilt <- subset(dfDCM,rowSums(dfDCM==0) <= 96) # ~20 % of samples have to be non-zero
-# Optional: Check to see how many 0s are in the dataframe for each ASV
-# dfDCMFilt$count <- rowSums(dfDCMFilt==0)
-# dfDCMFilt$count <- NULL
+# Add new taxonomy groups to main dataframe
+dfTax$fin <- taxz$fin
+dfTax$Taxon <- NULL
 
-# For this analysis, we will include ASVs in both networks that passed our filtering threshold in either network. 
-namez5 <- rownames(df5Filt)
-namezDCM <- rownames(dfDCMFilt)
-namez <- c(namez5,namezDCM)
-namez <- unique(namez) # These are all of the ASVs that will be included in both networks
+# Melt dataframe
+dfMelt <- melt(dfTax,id.vars=c("fin","Feature.ID"))
 
-# Now let's grab the ASVs that will be included in our networks from the CLR-transformed dataframe.
-dfCLR <- as.data.frame(dfCLR)
-dfCLRFilt <- subset(dfCLR,select=c(namez))
+# Split variable column up so that we can get month and year info
+colz <- colsplit(dfMelt$variable,"_",c("SPOT","Num","Month","Day","Year","Depth"))
+dfMelt$Cruise <- colz$Num
+dfMelt$Depth <- colz$Depth
 
-dfCLRFilt <- subset(dfCLRFilt,rownames(dfCLRFilt)!="SPOT_115_2_16_12_5m"& rownames(dfCLRFilt)!="SPOT_115_2_16_12_DCM")
+env <- read.csv("SPOT_Env_Feb2024_Final.csv",header=TRUE)
+dfMelt <- left_join(dfMelt,env)
+dfMelt <- dfMelt[c(1,3:4,6,8,28)]
+dfMelt <- subset(dfMelt,!is.na(Month))
 
-# Env
-env <- read.csv(file.choose(),header=TRUE,row.names=1)
-envImp <- env[c(4:22,26:31)]
-set.seed(100)
-envImp <- missForest::missForest(envImp)
-envImp$OOBerror
-envImp <- data.frame(envImp$ximp)
-envImp <- data.frame(env[c(1:3)],envImp)
+# Summarize dataframe prior to plotting
+dfSum <- dfMelt %>% group_by(fin,Month,Date,Depth) %>% summarize(s=sum(value)) %>% as.data.frame()
 
-# Now we need to step up some vectors for our NetGAM time-series transformation (vectors are MOY and DayofTS -- see NetGAM documentation)
-vec <- rep(1:12, length=192)
-vec <- as.data.frame(vec)
-vec$year <- rep(3:18, each=12)
-vec$DayOTS <- 1:192
-colnames(vec)<- c("month","year","day")
-vec <- vec[9:nrow(vec),]
-vec$day <- 1:nrow(vec)
+surfNum <- dfSum %>% filter(Depth=="5m" & fin=="Chlorophytes") %>% group_by(Month) %>% tally() %>% mutate(Depth="5m") %>% as.data.frame()
+dcmNum <- dfSum %>% filter(Depth=="DCM" & fin=="Chlorophytes") %>% group_by(Month) %>% tally() %>% mutate(Depth="DCM") %>% as.data.frame()
+numDf <- rbind(surfNum,dcmNum)
 
-# Parameters for NetGAM
-colz <- colsplit(envImp$Date,"/",c("m","d","y"))
-params <- data.frame(month=c(colz$m),year=c(colz$y),Cruise=c(envImp$Cruise),Depth=c(envImp$Depth))
-params$month <- as.numeric(params$month)
-params$year <- as.numeric(params$year)
-params <- left_join(params,vec)
+dfAvg <- dfSum %>% group_by(fin,Month,Depth) %>% summarize(m=mean(s))%>%as.data.frame()
+dfAvg <- left_join(dfAvg,numDf)
 
-# Add month of year and day of time-series information to our CLR-transformed dataframe
-params <- params[c(1,3:5)]
-colz <- colsplit(rownames(dfCLRFilt),"_",c("SPOT","Cruise","Month","Day","Year","Depth"))
-dfCLRFilt$Cruise <- colz$Cruise
-dfCLRFilt$Depth <- colz$Depth
-dfCLRFilt <- left_join(dfCLRFilt,params)
-dfCLRFilt <- dfCLRFilt %>% arrange(Cruise) %>% as.data.frame()
-dfCLRFilt <- left_join(dfCLRFilt,envImp)
-rownames(dfCLRFilt) <- paste("SPOT",dfCLRFilt$Cruise,dfCLRFilt$Depth,sep="-")
-dfCLRFilt$Depth <- NULL
-dfCLRFilt$Cruise <- NULL
+# Let's label our months as opposed to having #s
+dfAvg$Month <- factor(dfAvg$Month,levels=c(1,2,3,4,5,6,7,8,9,10,11,12),labels=c("January","February","March","April","May","June","July","August","September","October","November","December"))
 
+dfAvg$Depth <- ifelse(dfAvg$Depth=="5m","Surface",dfAvg$Depth)
+dfAvg$Depth <- factor(dfAvg$Depth,levels=c("Surface","DCM"))
+dfAvg$Month2 <- paste(dfAvg$Month," (",dfAvg$n,")",sep="")
 
-df5CLR <- subset(dfCLRFilt,grepl("5m", rownames(dfCLRFilt)))
-dfDCMCLR<- subset(dfCLRFilt,grepl("DCM", rownames(dfCLRFilt)))
-
-# NetGAM expects month of year and day of time-series vectors (not columns). Set up vectors for 5m samples. 
-df5Month <- df5CLR$month
-df5Day <- df5CLR$day
-df5CLR$month <- NULL
-df5CLR$day <- NULL
-df5CLR$Date <- NULL
-df5CLR$CSDepth <- NULL
-
-# NetGAM also doesn't like column names that start with numbers. So, we'll add an "S" to all column names.
-namez <- colnames(df5CLR)
-namez <- paste("S",namez,sep="_")
-colnames(df5CLR) <- namez
-
-# Run NetGAM for 5m samples
-df5CLR <- as.data.frame(t(df5CLR))
-df5CLR <- df5CLR[rowSums(df5CLR == 0) < 122, ]
-df5CLR <- as.data.frame(t(df5CLR))
-netGAM5 <- netGAM.df(df5CLR,MOY=df5Month,MCount=df5Day,clrt=FALSE)
-
-# NetGAM expects month of year and day of time-series vectors (not columns). Set up vectors for DCM samples.
-dfDCMMonth <- dfDCMCLR$month
-dfDCMDay <- dfDCMCLR$day
-dfDCMCLR$month <- NULL
-dfDCMCLR$day <- NULL
-dfDCMCLR$Date <- NULL
-dfDCMCLR$SiO3 <- NULL
-
-# NetGAM also doesn't like column names that start with numbers. So, we'll add an "S" to all column names.
-namez <- colnames(dfDCMCLR)
-namez <- paste("S",namez,sep="_")
-colnames(dfDCMCLR) <- namez
-
-# Run NetGAM for DCM samples
-dfDCMCLR <- as.data.frame(t(dfDCMCLR))
-dfDCMCLR <- dfDCMCLR[rowSums(dfDCMCLR == 0) < 120, ]
-dfDCMCLR <- as.data.frame(t(dfDCMCLR))
-netGAMDCM <- netGAM.df(dfDCMCLR,MOY=dfDCMMonth,MCount=dfDCMDay,clrt=FALSE)
-
-# Save dataframes that will be used for eLSA network runs
-# netGAM5<- as.data.frame(t(netGAM5))
-# netGAMDCM <- as.data.frame(t(netGAMDCM))
-netGAM5 <- as.matrix(netGAM5)
-netGAMDCM <- as.matrix(netGAMDCM)
-
-# Run graphical lasso network
-set.seed(100)
-npn <- huge.npn(netGAM5)
-lams  <- pulsar::getLamPath(pulsar::getMaxCov(npn), .01, len=30)
-hugeargs <- list(lambda=lams, verbose=FALSE,method='glasso')
-outd <- pulsar(npn, fun=huge::huge, fargs=hugeargs,rep.num=50, criterion = "stars")
-opt <- outd$stars
-n <- opt$opt.index
-# Get output adjacency matrix from graphical lasso model
-fit <- pulsar::refit(outd)
-fit <- fit$refit
-fit.fin <- fit$stars
-fit.fin <- as.matrix(fit.fin)
-fit.fin <- as.data.frame(fit.fin)
-colnames(fit.fin) <- colnames(netGAM5)
-rownames(fit.fin)<- colnames(netGAM5)
-fit.fin <- as.matrix(fit.fin)
-
-dim(fit.fin)
+# colrs <- randomcoloR::distinctColorPalette(length(unique(dfAvg$fin)))
+taxCols <- c("#E1746D","#76C3D7","#DE5AB1","#D5E0AF","#DED3DC","#87EB58","#D4DC60","#88E5D3","#88AAE1","#DBA85C","#8B7DDA","#9A8D87","#D99CD1","#B649E3","#7EDD90","#4FC4D0")
+names(taxCols) <- c("Chlorophytes","Ciliates","Cryptophytes","Diatoms","Haptophytes","Dinoflagellates","MAST groups","Other Alveolates","Other Archaeplastids","Other Eukaryotes","Other Stramenopiles","Rhizaria","Group I Syndiniales","Group II Syndiniales","Unknown Eukaryotes","Metazoans")
 
 
-write.csv(fit.fin,"Surf_SPOT_Net_2024.csv")
-# lambda = 0.18 (5m)
-# lambda = 0.18 (DCM)
+dfAvg$Month2 <- factor(dfAvg$Month2,levels=c("January (11)","February (10)", "March (10)","April (10)","May (11)","June (10)","July (11)","July (9)","August (9)","September (10)","October (10)","November (10)","December (10)" ))
+
+d <- dfAvg %>% filter(Depth=="DCM") %>% ggplot(aes(x=Month2,y=m))+geom_area(aes(fill = fin, group = fin),position="fill")+theme_classic()+xlab("Month")+ylab("Relative Abundance")+facet_wrap(~Depth)+theme(axis.text.x = element_text(angle=45, hjust=1))+scale_fill_manual(name="Taxonomic Group",values=c(taxCols))
+
+s/d+plot_annotation(tag_levels="a")+plot_layout(guides="collect")
+#ggsave("Figure2.pdf",width=6,height=8)
